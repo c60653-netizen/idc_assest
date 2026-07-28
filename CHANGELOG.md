@@ -4,6 +4,20 @@
 
 ---
 
+## [2.3.5] - 2026-07-21
+
+### 功能改进
+- 耗材统计 页面 UI 全面重构：卡片数据驱动渲染、出入库对比改进度条+净流量徽章、类别分布改 SVG 环形图、新增快速筛选按钮
+- CI 升级 GitHub Actions 依赖版本（actions/checkout@v5、docker/login-action@v4、setup-buildx-action@v4、build-push-action@v6）
+- 项目规则 新增 git-push-workflow.md 仓库提交推送标准工作流
+- 项目规则 更新 git-push-workflow.md 版本发布流程说明
+
+### 问题修复
+- systemSettings 修复 projectPath 路径错误（update.js 所在位置指向）
+- DeviceDetailDrawer 修复端口列表按名称数字段自然排序（支持 1/0/10 正确排序）
+
+---
+
 ## [2.3.4] - 2026-07-21
 
 ### 新增功能
