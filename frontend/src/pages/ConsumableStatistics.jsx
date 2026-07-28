@@ -1,24 +1,19 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Row,
-  Col,
   Table,
   Tag,
   Progress,
   DatePicker,
   Select,
   Button,
-  Empty,
   Tooltip,
   Badge,
   Typography,
   Space,
   Avatar,
   Spin,
-  Dropdown,
-  Menu,
-  Statistic,
   Switch,
+  message,
 } from 'antd';
 import {
   PieChartOutlined,
@@ -26,8 +21,6 @@ import {
   WarningOutlined,
   HistoryOutlined,
   ReloadOutlined,
-  CalendarOutlined,
-  AppstoreOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
   BoxPlotOutlined,
@@ -39,20 +32,15 @@ import {
   RiseOutlined,
   MinusOutlined,
   ThunderboltOutlined,
-  FileExcelOutlined,
-  MoreOutlined,
-  EyeOutlined,
 } from '@ant-design/icons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
-import api from '../api';
 import { consumableRecordAPI, consumableCategoryAPI, consumableAPI } from '../api/cache';
-import { message } from 'antd';
 import { selectStyles, datePickerStyles } from '../styles/deviceManagementStyles';
 import { designTokens } from '../config/theme';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
@@ -60,55 +48,55 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
+    transition: { staggerChildren: 0.06, delayChildren: 0.08 },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 12 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 120, damping: 18 },
+    transition: { type: 'spring', stiffness: 130, damping: 18 },
   },
 };
 
 const PageContainer = styled.div`
-  padding: 24px;
-  background: ${designTokens.colors.background.main};
+  padding: 20px 24px 32px;
+  background: ${designTokens.colors.background.secondary};
   min-height: 100vh;
 
   @media (max-width: 768px) {
-    padding: 16px;
+    padding: 12px 16px 24px;
   }
 `;
 
 const PageHeader = styled(motion.div)`
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 `;
 
 const TitleSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 
   .icon-wrapper {
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
     background: ${designTokens.colors.primary.gradient};
-    border-radius: 16px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.22);
 
     .anticon {
-      font-size: 26px;
+      font-size: 22px;
       color: white;
     }
   }
@@ -116,75 +104,82 @@ const TitleSection = styled.div`
   .title-content {
     h1 {
       margin: 0;
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 700;
       color: ${designTokens.colors.text.primary};
+      line-height: 1.2;
     }
 
     .subtitle {
       color: ${designTokens.colors.text.secondary};
-      font-size: 14px;
+      font-size: 13px;
       margin-top: 2px;
     }
   }
 `;
 
-const QuickFilterBar = styled(motion.div)`
+const HeaderActions = styled.div`
   display: flex;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
-`;
 
-const QuickFilterBtn = styled(Button)`
-  border-radius: 20px;
-  height: 32px;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid
-    ${props => (props.$active ? designTokens.colors.primary.main : designTokens.colors.border)};
-  background: ${props => (props.$active ? designTokens.colors.primary.main : 'transparent')};
-  color: ${props => (props.$active ? 'white' : designTokens.colors.text.secondary)};
+  .last-update {
+    font-size: 12px;
+    color: ${designTokens.colors.text.secondary};
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: ${designTokens.colors.background.card};
+    border: 1px solid ${designTokens.colors.border};
+    border-radius: 8px;
+  }
 
-  &:hover {
-    border-color: ${designTokens.colors.primary.main};
-    color: ${props => (props.$active ? 'white' : designTokens.colors.primary.main)};
-    background: ${props =>
-      props.$active ? designTokens.colors.primary.main : 'rgba(99, 102, 241, 0.05)'};
+  .auto-refresh {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: ${designTokens.colors.background.card};
+    border: 1px solid ${designTokens.colors.border};
+    border-radius: 8px;
+    font-size: 13px;
+    color: ${designTokens.colors.text.secondary};
   }
 `;
 
 const FilterCard = styled(motion.div)`
   background: ${designTokens.colors.background.card};
-  padding: 24px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  margin-bottom: 24px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
   border: 1px solid ${designTokens.colors.border};
 
   @media (max-width: 768px) {
-    padding: 16px;
+    padding: 12px 16px;
   }
 `;
 
 const FilterRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   flex-wrap: wrap;
 
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 12px;
   }
 `;
 
 const FilterGroup = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -195,31 +190,54 @@ const FilterGroup = styled.div`
 
 const FilterItem = styled.div`
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
 
   .filter-label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    color: ${designTokens.colors.text.primary};
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    color: ${designTokens.colors.text.secondary};
+    white-space: nowrap;
+  }
 
-    &::before {
-      content: '';
-      width: 3px;
-      height: 12px;
-      background: ${designTokens.colors.primary.main};
-      border-radius: 2px;
-    }
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+`;
+
+const QuickFilterGroup = styled.div`
+  display: flex;
+  gap: 4px;
+  background: ${designTokens.colors.background.secondary};
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid ${designTokens.colors.border};
+`;
+
+const QuickFilterBtn = styled.button`
+  border: none;
+  background: ${props => (props.$active ? designTokens.colors.background.card : 'transparent')};
+  color: ${props =>
+    props.$active ? designTokens.colors.primary.main : designTokens.colors.text.secondary};
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: ${props => (props.$active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none')};
+
+  &:hover {
+    color: ${designTokens.colors.primary.main};
   }
 `;
 
 const FilterActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-left: auto;
 
   @media (max-width: 768px) {
@@ -231,8 +249,8 @@ const FilterActions = styled.div`
 const StatsGrid = styled(motion.div)`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
 
   @media (max-width: 1200px) {
     grid-template-columns: repeat(2, 1fr);
@@ -245,18 +263,17 @@ const StatsGrid = styled(motion.div)`
 
 const StatsCard = styled(motion.div)`
   background: ${designTokens.colors.background.card};
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   border: 1px solid ${designTokens.colors.border};
   position: relative;
   overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
     border-color: ${props => props.$borderColor || designTokens.colors.primary.main}40;
   }
 
@@ -266,43 +283,37 @@ const StatsCard = styled(motion.div)`
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 3px;
     background: ${props => props.$accent || designTokens.colors.primary.gradient};
   }
 
-  .card-content {
+  .card-top {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    margin-bottom: 12px;
   }
 
   .card-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 18px;
     background: ${props => props.$iconBg || 'rgba(99, 102, 241, 0.1)'};
     color: ${props => props.$iconColor || designTokens.colors.primary.main};
-    box-shadow: 0 4px 12px ${props => props.$iconShadow || 'rgba(99, 102, 241, 0.2)'};
   }
 
   .card-trend {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 12px;
+    gap: 3px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 3px 8px;
+    border-radius: 12px;
 
     &.up {
       color: ${designTokens.colors.success.main};
@@ -320,32 +331,51 @@ const StatsCard = styled(motion.div)`
     }
   }
 
-  .card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
   .card-value {
-    font-size: 32px;
+    font-size: 26px;
     font-weight: 700;
     color: ${designTokens.colors.text.primary};
-    line-height: 1;
+    line-height: 1.1;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+
+    .unit {
+      font-size: 13px;
+      font-weight: 500;
+      color: ${designTokens.colors.text.secondary};
+    }
   }
 
   .card-label {
-    font-size: 13px;
+    font-size: 12px;
     color: ${designTokens.colors.text.secondary};
     font-weight: 500;
+    margin-top: 4px;
+  }
+
+  .card-foot {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed ${designTokens.colors.border};
+    font-size: 11px;
+    color: ${designTokens.colors.text.tertiary};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .foot-value {
+      color: ${designTokens.colors.text.secondary};
+      font-weight: 600;
+    }
   }
 `;
 
 const BentoGrid = styled(motion.div)`
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: auto;
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: 16px;
+  margin-bottom: 16px;
 
   @media (max-width: 1200px) {
     grid-template-columns: repeat(6, 1fr);
@@ -358,45 +388,47 @@ const BentoGrid = styled(motion.div)`
 
 const BentoCard = styled(motion.div)`
   background: ${designTokens.colors.background.card};
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   border: 1px solid ${designTokens.colors.border};
   overflow: hidden;
   grid-column: ${props => props.$col || 'span 6'};
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
 
   &:hover {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
   }
 
   .card-header {
-    padding: 18px 24px;
+    padding: 14px 20px;
     border-bottom: 1px solid ${designTokens.colors.border};
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: ${designTokens.colors.background.main};
+    background: ${designTokens.colors.background.secondary};
+    flex-shrink: 0;
 
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
 
       .header-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 16px;
         background: ${props => props.$iconBg || designTokens.colors.primary.gradient};
         color: white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
 
       .header-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         color: ${designTokens.colors.text.primary};
       }
@@ -406,170 +438,186 @@ const BentoCard = styled(motion.div)`
       color: ${designTokens.colors.text.secondary};
       font-size: 12px;
       font-weight: 500;
-      padding: 4px 10px;
+      padding: 3px 10px;
       background: ${designTokens.colors.background.card};
-      border-radius: 8px;
+      border-radius: 6px;
       border: 1px solid ${designTokens.colors.border};
     }
   }
 
   .card-body {
+    padding: 16px 20px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .card-body.no-pad {
     padding: 0;
   }
 `;
 
-const InOutComparison = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-
-  @media (max-width: 576px) {
-    grid-template-columns: 1fr;
-  }
+// 出入库对比可视化
+const InOutVisualization = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 `;
 
-const ComparisonItem = styled.div`
-  padding: 20px;
-  border-radius: 14px;
-  background: ${props => props.$bg || 'transparent'};
-  text-align: center;
-  transition: all 0.3s ease;
-  border: 1px solid ${props => props.$color}20;
+const ComparisonRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 
-  &:hover {
-    background: ${props => props.$bg || 'transparent'};
-    border-color: ${props => props.$color}40;
-    transform: translateY(-2px);
-  }
-
-  .item-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 14px;
-    border-radius: 16px;
+  .row-head {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    background: ${props => props.$color}15;
-    color: ${props => props.$color};
+    justify-content: space-between;
+
+    .row-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: ${designTokens.colors.text.secondary};
+    }
+
+    .row-value {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      color: ${designTokens.colors.text.primary};
+
+      .row-count {
+        font-size: 12px;
+        font-weight: 500;
+        color: ${designTokens.colors.text.tertiary};
+      }
+    }
   }
 
-  .item-value {
-    font-size: 34px;
-    font-weight: 700;
-    color: ${props => props.$color};
-    margin-bottom: 4px;
-    line-height: 1;
-  }
+  .bar-track {
+    height: 8px;
+    background: ${designTokens.colors.background.tertiary};
+    border-radius: 6px;
+    overflow: hidden;
 
-  .item-label {
-    font-size: 14px;
-    color: ${designTokens.colors.text.secondary};
-    margin-bottom: 10px;
-    font-weight: 500;
-  }
-
-  .item-sub {
-    font-size: 13px;
-    color: ${designTokens.colors.text.secondary};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-
-    strong {
-      color: ${props => props.$color};
-      font-weight: 600;
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      background: ${props => props.$barColor || designTokens.colors.primary.main};
     }
   }
 `;
 
-const CategoryGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-`;
+const NetFlowBadge = styled.div`
+  margin-top: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: ${props =>
+    props.$positive
+      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.04))'
+      : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(185, 28, 28, 0.04))'};
+  border: 1px solid
+    ${props =>
+      props.$positive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
 
-const CategoryCard = styled(motion.div)`
-  padding: 16px;
-  border-radius: 12px;
-  background: ${designTokens.colors.background.card};
-  border: 1px solid ${designTokens.colors.border};
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${props => props.$color};
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px ${props => props.$color}20;
-    border-color: ${props => props.$color}40;
-
-    &::before {
-      opacity: 1;
-    }
-  }
-
-  .category-badge {
-    display: inline-flex;
+  .net-label {
+    display: flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    background: ${props => props.$color}15;
-    color: ${props => props.$color};
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-  }
-
-  .category-count {
-    font-size: 32px;
-    font-weight: 700;
-    color: ${designTokens.colors.text.primary};
-    margin-bottom: 4px;
-    line-height: 1;
-  }
-
-  .category-label {
-    font-size: 12px;
+    font-size: 13px;
     color: ${designTokens.colors.text.secondary};
-    margin-bottom: 10px;
     font-weight: 500;
   }
 
-  .category-stock {
-    font-size: 12px;
-    color: ${designTokens.colors.text.secondary};
-    padding-top: 8px;
-    border-top: 1px solid ${designTokens.colors.border}40;
+  .net-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: ${props =>
+      props.$positive ? designTokens.colors.success.main : designTokens.colors.error.main};
+  }
+`;
 
-    strong {
-      color: ${designTokens.colors.text.primary};
-      font-weight: 600;
+// 类别环形图
+const DonutWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+  }
+
+  .donut-svg {
+    flex-shrink: 0;
+  }
+
+  .donut-center {
+    text-anchor: middle;
+    dominant-baseline: middle;
+
+    .donut-value {
+      font-size: 20px;
+      font-weight: 700;
+      fill: ${designTokens.colors.text.primary};
+    }
+
+    .donut-label {
+      font-size: 10px;
+      fill: ${designTokens.colors.text.tertiary};
+    }
+  }
+
+  .legend {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    max-height: 180px;
+    overflow-y: auto;
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: ${designTokens.colors.background.tertiary};
+      }
+
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      .legend-name {
+        flex: 1;
+        font-size: 12px;
+        color: ${designTokens.colors.text.primary};
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .legend-value {
+        font-size: 12px;
+        font-weight: 600;
+        color: ${designTokens.colors.text.secondary};
+      }
     }
   }
 `;
@@ -581,14 +629,14 @@ const StyledTable = styled(Table)`
   }
 
   .ant-table-thead > tr > th {
-    background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
+    background: ${designTokens.colors.background.secondary};
     font-weight: 600;
     font-size: 11px;
     color: ${designTokens.colors.text.secondary};
     border-bottom: 1px solid ${designTokens.colors.border};
-    padding: 10px 12px;
+    padding: 8px 12px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
   }
 
   .ant-table-tbody > tr > td {
@@ -597,80 +645,42 @@ const StyledTable = styled(Table)`
   }
 
   .ant-table-tbody > tr {
-    height: 48px;
+    height: 44px;
   }
 
   .ant-table-tbody > tr:hover > td {
     background: rgba(99, 102, 241, 0.03);
   }
 
-  .ant-table-wrapper {
-    border-radius: 0 0 16px 16px;
-  }
-
   .ant-pagination {
-    padding: 12px 16px;
+    padding: 10px 16px;
     margin: 0;
-    background: ${designTokens.colors.background.main};
+    background: ${designTokens.colors.background.secondary};
     border-top: 1px solid ${designTokens.colors.border};
-  }
-`;
-
-const ProgressBar = styled.div`
-  .progress-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .ant-progress {
-      flex: 1;
-      margin: 0;
-    }
-
-    .progress-text {
-      font-size: 13px;
-      font-weight: 600;
-      min-width: 42px;
-      text-align: right;
-    }
   }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 48px 24px;
+  padding: 32px 16px;
   color: ${designTokens.colors.text.secondary};
 
   .empty-icon {
-    font-size: 56px;
-    margin-bottom: 16px;
-    opacity: 0.4;
+    font-size: 44px;
+    margin-bottom: 12px;
+    opacity: 0.35;
   }
 
   .empty-text {
-    font-size: 15px;
-    margin-bottom: 6px;
+    font-size: 13px;
+    margin-bottom: 4px;
     font-weight: 500;
   }
 
   .empty-subtext {
-    font-size: 13px;
+    font-size: 12px;
     opacity: 0.7;
   }
-`;
-
-const LoadingOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16px;
-  z-index: 10;
 `;
 
 const ConsumableStatistics = () => {
@@ -701,15 +711,14 @@ const ConsumableStatistics = () => {
 
   const quickFilters = [
     { key: 'today', label: '今日', days: 0 },
-    { key: '7days', label: '近7天', days: 7 },
-    { key: '30days', label: '近30天', days: 30 },
-    { key: '90days', label: '近90天', days: 90 },
+    { key: '7days', label: '7天', days: 7 },
+    { key: '30days', label: '30天', days: 30 },
+    { key: '90days', label: '90天', days: 90 },
   ];
 
   const loadCategories = async () => {
     try {
       const response = await consumableCategoryAPI.getList();
-      console.log('[分类] 返回数据:', response);
       setCategories(response || []);
     } catch (error) {
       console.error('加载分类列表失败:', error);
@@ -728,8 +737,6 @@ const ConsumableStatistics = () => {
       };
 
       const statsResponse = await consumableRecordAPI.statistics(params);
-      console.log('[统计] 返回:', statsResponse);
-      console.log('[统计] 最近记录:', statsResponse?.recentRecords);
 
       setStats({
         inCount: statsResponse?.inCount || 0,
@@ -740,7 +747,6 @@ const ConsumableStatistics = () => {
       });
 
       const summaryResponse = await consumableAPI.getStatistics();
-      console.log('[汇总] 返回:', summaryResponse);
 
       setSummary({
         total: summaryResponse?.total || 0,
@@ -768,10 +774,9 @@ const ConsumableStatistics = () => {
     }
   };
 
-  const loadLowStockItems = async (isAuto = false) => {
+  const loadLowStockItems = async () => {
     try {
       const response = await consumableAPI.getLowStock();
-      console.log('[低库存] 返回:', response);
       setLowStockItems(response || []);
     } catch (error) {
       console.error('加载低库存预警失败:', error?.message || error);
@@ -790,7 +795,7 @@ const ConsumableStatistics = () => {
       refreshIntervalRef.current = setInterval(() => {
         setIsAutoRefreshing(true);
         loadStatistics(true);
-        loadLowStockItems(true);
+        loadLowStockItems();
         setLastUpdateTime(new Date());
       }, 30000);
     } else {
@@ -822,8 +827,9 @@ const ConsumableStatistics = () => {
   const handleRefresh = () => {
     setLoading(true);
     setIsAutoRefreshing(false);
-    Promise.all([loadStatistics(false), loadLowStockItems(false)]).finally(() => {
+    Promise.all([loadStatistics(false), loadLowStockItems()]).finally(() => {
       setLoading(false);
+      setLastUpdateTime(new Date());
       if (!realTimeRefresh) {
         message.success('数据已手动刷新');
       }
@@ -865,19 +871,99 @@ const ConsumableStatistics = () => {
     return predefinedColors[Math.abs(hash) % predefinedColors.length];
   };
 
+  const netQuantity = useMemo(() => {
+    return (stats?.inQuantity || 0) - (stats?.outQuantity || 0);
+  }, [stats]);
+
+  // 入库 / 出库 占比（用于条形对比）
+  const maxFlow = useMemo(() => {
+    return Math.max(stats?.inQuantity || 0, stats?.outQuantity || 0, 1);
+  }, [stats]);
+
+  const inRatio = ((stats?.inQuantity || 0) / maxFlow) * 100;
+  const outRatio = ((stats?.outQuantity || 0) / maxFlow) * 100;
+
+  // 类别环形图数据
+  const donutData = useMemo(() => {
+    const list = summary?.byCategory || [];
+    const total = list.reduce((sum, item) => sum + (item.count || 0), 0);
+    return { list, total };
+  }, [summary]);
+
+  // 计算环形图各段角度
+  const donutSegments = useMemo(() => {
+    if (!donutData.list.length || donutData.total === 0) return [];
+    const segments = [];
+    let cumulativeAngle = -90; // 从顶部开始
+    donutData.list.slice(0, 8).forEach(item => {
+      const count = item.count || 0;
+      const percentage = (count / donutData.total) * 100;
+      const angle = (count / donutData.total) * 360;
+      segments.push({
+        ...item,
+        color: getCategoryColor(item.category),
+        startAngle: cumulativeAngle,
+        endAngle: cumulativeAngle + angle,
+        percentage,
+      });
+      cumulativeAngle += angle;
+    });
+    // 其余类别合并
+    if (donutData.list.length > 8) {
+      const restCount = donutData.list
+        .slice(8)
+        .reduce((sum, item) => sum + (item.count || 0), 0);
+      const angle = (restCount / donutData.total) * 360;
+      segments.push({
+        category: '其他',
+        count: restCount,
+        color: '#94a3b8',
+        startAngle: cumulativeAngle,
+        endAngle: cumulativeAngle + angle,
+        percentage: (restCount / donutData.total) * 100,
+      });
+    }
+    return segments;
+  }, [donutData]);
+
+  // SVG 圆弧路径（极坐标 → 笛卡尔坐标）
+  const polarToCartesian = (cx, cy, r, angleDeg) => {
+    const rad = (angleDeg * Math.PI) / 180;
+    return {
+      x: cx + r * Math.cos(rad),
+      y: cy + r * Math.sin(rad),
+    };
+  };
+
+  const describeArc = (cx, cy, rOuter, rInner, startAngle, endAngle) => {
+    const startOuter = polarToCartesian(cx, cy, rOuter, startAngle);
+    const endOuter = polarToCartesian(cx, cy, rOuter, endAngle);
+    const startInner = polarToCartesian(cx, cy, rInner, endAngle);
+    const endInner = polarToCartesian(cx, cy, rInner, startAngle);
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+    return [
+      `M ${startOuter.x} ${startOuter.y}`,
+      `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${endOuter.x} ${endOuter.y}`,
+      `L ${startInner.x} ${startInner.y}`,
+      `A ${rInner} ${rInner} 0 ${largeArc} 0 ${endInner.x} ${endInner.y}`,
+      'Z',
+    ].join(' ');
+  };
+
   const lowStockColumns = [
     {
       title: '耗材名称',
       dataIndex: 'name',
       key: 'name',
-      width: '35%',
+      width: '40%',
       render: (text, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Avatar
-            size={28}
+            size={26}
             style={{
               background: `linear-gradient(135deg, ${designTokens.colors.warning.main}, #fb923c)`,
-              fontSize: '12px',
+              fontSize: '11px',
               flexShrink: 0,
             }}
           >
@@ -888,7 +974,7 @@ const ConsumableStatistics = () => {
               style={{
                 fontWeight: 600,
                 color: designTokens.colors.text.primary,
-                fontSize: '13px',
+                fontSize: '12px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -912,9 +998,9 @@ const ConsumableStatistics = () => {
       ),
     },
     {
-      title: '库存状态',
+      title: '库存',
       key: 'stockStatus',
-      width: '40%',
+      width: '35%',
       align: 'center',
       render: (_, record) => {
         const current = record.currentStock || 0;
@@ -922,22 +1008,22 @@ const ConsumableStatistics = () => {
         const isLow = current < min;
         return (
           <div
-            style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}
+            style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 3 }}
           >
             <span
               style={{
                 fontWeight: 700,
-                fontSize: '14px',
+                fontSize: '13px',
                 color: isLow ? designTokens.colors.error.main : designTokens.colors.text.primary,
               }}
             >
               {current}
             </span>
-            <span style={{ color: designTokens.colors.text.secondary, fontSize: '11px' }}>/</span>
-            <span style={{ color: designTokens.colors.text.secondary, fontSize: '12px' }}>
+            <span style={{ color: designTokens.colors.text.secondary, fontSize: '10px' }}>/</span>
+            <span style={{ color: designTokens.colors.text.secondary, fontSize: '11px' }}>
               {min}
             </span>
-            <span style={{ color: designTokens.colors.text.secondary, fontSize: '11px' }}>
+            <span style={{ color: designTokens.colors.text.secondary, fontSize: '10px' }}>
               {record.unit || '个'}
             </span>
           </div>
@@ -970,20 +1056,20 @@ const ConsumableStatistics = () => {
               : designTokens.colors.success.main;
 
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Progress
               percent={rate}
               size="small"
               strokeColor={color}
               showInfo={false}
-              style={{ width: 60 }}
+              style={{ width: 50 }}
             />
             <span
               style={{
                 fontWeight: 600,
-                fontSize: '12px',
+                fontSize: '11px',
                 color,
-                minWidth: 32,
+                minWidth: 28,
                 textAlign: 'right',
               }}
             >
@@ -1000,12 +1086,12 @@ const ConsumableStatistics = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      width: 80,
+      width: 70,
       render: type => (
         <Tag
           icon={type === 'in' ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
           color={type === 'in' ? 'success' : 'processing'}
-          style={{ borderRadius: 12, fontWeight: 500, border: 'none' }}
+          style={{ borderRadius: 10, fontWeight: 500, border: 'none', fontSize: '11px' }}
         >
           {type === 'in' ? '入库' : '出库'}
         </Tag>
@@ -1019,24 +1105,24 @@ const ConsumableStatistics = () => {
       render: (text, record) => (
         <Space>
           <Avatar
-            size={30}
+            size={28}
             style={{
               background: record.category
                 ? getCategoryColor(record.category)
                 : designTokens.colors.info.main,
-              fontSize: '12px',
+              fontSize: '11px',
             }}
           >
             {record.category?.charAt(0) || '耗'}
           </Avatar>
           <div>
             <div
-              style={{ fontWeight: 600, fontSize: '14px', color: designTokens.colors.text.primary }}
+              style={{ fontWeight: 600, fontSize: '13px', color: designTokens.colors.text.primary }}
             >
               {text || '-'}
             </div>
             {record.category && (
-              <div style={{ fontSize: '12px', color: designTokens.colors.text.secondary }}>
+              <div style={{ fontSize: '11px', color: designTokens.colors.text.secondary }}>
                 {record.category}
               </div>
             )}
@@ -1054,7 +1140,7 @@ const ConsumableStatistics = () => {
         <Text
           strong
           style={{
-            fontSize: '15px',
+            fontSize: '13px',
             color:
               record.type === 'in'
                 ? designTokens.colors.success.main
@@ -1073,10 +1159,10 @@ const ConsumableStatistics = () => {
       width: 100,
       render: operator => (
         <Space size={6}>
-          <Avatar size={24} style={{ background: designTokens.colors.info.main, fontSize: '12px' }}>
+          <Avatar size={22} style={{ background: designTokens.colors.info.main, fontSize: '11px' }}>
             {operator?.charAt(0) || '?'}
           </Avatar>
-          <Text style={{ fontSize: '13px' }}>{operator || '-'}</Text>
+          <Text style={{ fontSize: '12px' }}>{operator || '-'}</Text>
         </Space>
       ),
     },
@@ -1084,18 +1170,103 @@ const ConsumableStatistics = () => {
       title: '时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 140,
+      width: 120,
       render: date => (
-        <Text type="secondary" style={{ fontSize: '12px' }}>
+        <Text type="secondary" style={{ fontSize: '11px' }}>
           {dayjs(date).format('MM-DD HH:mm')}
         </Text>
       ),
     },
   ];
 
-  const netQuantity = useMemo(() => {
-    return (stats?.inQuantity || 0) - (stats?.outQuantity || 0);
-  }, [stats]);
+  // KPI 卡片配置
+  const statsCards = [
+    {
+      key: 'total',
+      value: summary?.total || 0,
+      unit: '种',
+      label: '耗材种类',
+      icon: <DatabaseOutlined />,
+      accent: designTokens.colors.primary.gradient,
+      iconBg: 'rgba(99, 102, 241, 0.1)',
+      iconColor: designTokens.colors.primary.main,
+      borderColor: designTokens.colors.primary.main,
+      foot: (
+        <>
+          <span>分类覆盖</span>
+          <span className="foot-value">{donutData.list.length} 类</span>
+        </>
+      ),
+      trend: null,
+    },
+    {
+      key: 'lowStock',
+      value: summary?.lowStock || 0,
+      unit: '项',
+      label: '库存预警',
+      icon: <WarningOutlined />,
+      accent: designTokens.colors.warning.gradient,
+      iconBg: 'rgba(245, 158, 11, 0.1)',
+      iconColor: designTokens.colors.warning.main,
+      borderColor: designTokens.colors.warning.main,
+      foot: (
+        <>
+          <span>状态</span>
+          <span
+            className="foot-value"
+            style={{
+              color:
+                (summary?.lowStock || 0) > 0
+                  ? designTokens.colors.warning.main
+                  : designTokens.colors.success.main,
+            }}
+          >
+            {(summary?.lowStock || 0) > 0 ? '需关注' : '全部充足'}
+          </span>
+        </>
+      ),
+      trend:
+        (summary?.lowStock || 0) > 0
+          ? { type: 'down', label: '需关注' }
+          : { type: 'up', label: '正常' },
+    },
+    {
+      key: 'inQuantity',
+      value: stats?.inQuantity || 0,
+      unit: '件',
+      label: '期间入库',
+      icon: <ArrowDownOutlined />,
+      accent: designTokens.colors.success.gradient,
+      iconBg: 'rgba(16, 185, 129, 0.1)',
+      iconColor: designTokens.colors.success.main,
+      borderColor: designTokens.colors.success.main,
+      foot: (
+        <>
+          <span>入库次数</span>
+          <span className="foot-value">{stats?.inCount || 0} 次</span>
+        </>
+      ),
+      trend: { type: 'up', label: '入库' },
+    },
+    {
+      key: 'outQuantity',
+      value: stats?.outQuantity || 0,
+      unit: '件',
+      label: '期间出库',
+      icon: <ArrowUpOutlined />,
+      accent: designTokens.colors.secondary.gradient,
+      iconBg: 'rgba(236, 72, 153, 0.1)',
+      iconColor: designTokens.colors.secondary.main,
+      borderColor: designTokens.colors.secondary.main,
+      foot: (
+        <>
+          <span>出库次数</span>
+          <span className="foot-value">{stats?.outCount || 0} 次</span>
+        </>
+      ),
+      trend: { type: 'neutral', label: '出库' },
+    },
+  ];
 
   return (
     <PageContainer>
@@ -1113,26 +1284,18 @@ const ConsumableStatistics = () => {
             <div className="subtitle">实时监控耗材库存状态与流转情况</div>
           </div>
         </TitleSection>
-        <Space>
+        <HeaderActions>
           {lastUpdateTime && (
-            <div
-              style={{
-                fontSize: 12,
-                color: designTokens.colors.text.secondary,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              {isAutoRefreshing ? <Spin size="small" /> : <span style={{ fontSize: 10 }}>●</span>}
+            <div className="last-update">
+              {isAutoRefreshing ? <Spin size="small" /> : <span style={{ fontSize: 8 }}>●</span>}
               {isAutoRefreshing
                 ? '刷新中...'
                 : `更新于 ${dayjs(lastUpdateTime).format('HH:mm:ss')}`}
             </div>
           )}
           <Tooltip title={realTimeRefresh ? '已开启30秒自动刷新' : '已关闭自动刷新'}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: designTokens.colors.text.secondary }}>实时</span>
+            <div className="auto-refresh">
+              <span>实时</span>
               <Switch
                 size="small"
                 checked={realTimeRefresh}
@@ -1145,13 +1308,9 @@ const ConsumableStatistics = () => {
           <Button
             icon={<ExportOutlined />}
             onClick={handleExport}
-            style={{
-              height: 38,
-              borderRadius: 10,
-              borderColor: designTokens.colors.border,
-            }}
+            style={{ height: 34, borderRadius: 8, borderColor: designTokens.colors.border }}
           >
-            导出报表
+            导出
           </Button>
           <Button
             type="primary"
@@ -1159,28 +1318,16 @@ const ConsumableStatistics = () => {
             onClick={handleRefresh}
             loading={loading && !isAutoRefreshing}
             style={{
-              height: 38,
-              borderRadius: 10,
+              height: 34,
+              borderRadius: 8,
               background: designTokens.colors.primary.gradient,
               border: 'none',
             }}
           >
             刷新
           </Button>
-        </Space>
+        </HeaderActions>
       </PageHeader>
-
-      <QuickFilterBar variants={containerVariants} initial="hidden" animate="visible">
-        {quickFilters.map(filter => (
-          <QuickFilterBtn
-            key={filter.key}
-            $active={quickFilter === filter.key}
-            onClick={() => handleQuickFilter(filter.key)}
-          >
-            {filter.label}
-          </QuickFilterBtn>
-        ))}
-      </QuickFilterBar>
 
       <FilterCard variants={itemVariants}>
         <FilterRow>
@@ -1193,16 +1340,30 @@ const ConsumableStatistics = () => {
                   setDateRange(dates);
                   setQuickFilter(null);
                 }}
-                style={{ ...datePickerStyles.range, width: 320 }}
+                style={{ ...datePickerStyles.range, width: 280 }}
                 allowClear={false}
               />
             </FilterItem>
             <FilterItem>
-              <span className="filter-label">耗材类别</span>
+              <span className="filter-label">快速选择</span>
+              <QuickFilterGroup>
+                {quickFilters.map(filter => (
+                  <QuickFilterBtn
+                    key={filter.key}
+                    $active={quickFilter === filter.key}
+                    onClick={() => handleQuickFilter(filter.key)}
+                  >
+                    {filter.label}
+                  </QuickFilterBtn>
+                ))}
+              </QuickFilterGroup>
+            </FilterItem>
+            <FilterItem>
+              <span className="filter-label">类别</span>
               <Select
                 value={categoryFilter}
                 onChange={setCategoryFilter}
-                style={{ ...selectStyles.base, width: 180 }}
+                style={{ ...selectStyles.base, width: 160 }}
                 showSearch
                 placeholder="选择类别"
                 optionFilterProp="children"
@@ -1219,15 +1380,15 @@ const ConsumableStatistics = () => {
           <FilterActions>
             <Button
               type="primary"
-              onClick={loadStatistics}
+              onClick={() => loadStatistics(false)}
               loading={loading}
               icon={<ThunderboltOutlined />}
               style={{
-                height: 40,
-                borderRadius: 10,
+                height: 36,
+                borderRadius: 8,
                 background: designTokens.colors.primary.gradient,
                 border: 'none',
-                padding: '0 24px',
+                padding: '0 20px',
                 fontWeight: 500,
               }}
             >
@@ -1241,8 +1402,8 @@ const ConsumableStatistics = () => {
               }}
               icon={<ReloadOutlined />}
               style={{
-                height: 40,
-                borderRadius: 10,
+                height: 36,
+                borderRadius: 8,
                 borderColor: designTokens.colors.border,
               }}
             >
@@ -1253,119 +1414,41 @@ const ConsumableStatistics = () => {
       </FilterCard>
 
       <StatsGrid variants={containerVariants} initial="hidden" animate="visible">
-        <StatsCard
-          variants={itemVariants}
-          $accent={designTokens.colors.primary.gradient}
-          $iconBg="rgba(99, 102, 241, 0.1)"
-          $iconColor={designTokens.colors.primary.main}
-          $iconShadow="rgba(99, 102, 241, 0.2)"
-          $borderColor={designTokens.colors.primary.main}
-          whileHover={{ y: -6 }}
-        >
-          <div className="card-content">
-            <div className="card-header">
-              <div className="card-icon">
-                <DatabaseOutlined />
-              </div>
-              <div className="card-trend neutral">
-                <AppstoreOutlined /> 总览
-              </div>
-            </div>
-            <div className="card-body">
-              <div className="card-value">{summary?.total || 0}</div>
-              <div className="card-label">耗材种类</div>
-            </div>
-          </div>
-        </StatsCard>
-
-        <StatsCard
-          variants={itemVariants}
-          $accent={designTokens.colors.warning.gradient}
-          $iconBg="rgba(245, 158, 11, 0.1)"
-          $iconColor={designTokens.colors.warning.main}
-          $iconShadow="rgba(245, 158, 11, 0.2)"
-          $borderColor={designTokens.colors.warning.main}
-          whileHover={{ y: -6 }}
-        >
-          <div className="card-content">
-            <div className="card-header">
-              <div className="card-icon">
-                <WarningOutlined />
-              </div>
-              {summary?.lowStock > 0 && (
-                <div className="card-trend down">
-                  <ExclamationCircleOutlined /> 需关注
+        {statsCards.map(card => (
+          <StatsCard
+            key={card.key}
+            variants={itemVariants}
+            $accent={card.accent}
+            $iconBg={card.iconBg}
+            $iconColor={card.iconColor}
+            $borderColor={card.borderColor}
+          >
+            <div className="card-top">
+              <div className="card-icon">{card.icon}</div>
+              {card.trend && (
+                <div className={`card-trend ${card.trend.type}`}>
+                  {card.trend.type === 'up' && <RiseOutlined />}
+                  {card.trend.type === 'down' && <FallOutlined />}
+                  {card.trend.type === 'neutral' && <MinusOutlined />}
+                  {card.trend.label}
                 </div>
               )}
             </div>
-            <div className="card-body">
-              <div className="card-value" style={{ color: designTokens.colors.warning.main }}>
-                {summary?.lowStock || 0}
-              </div>
-              <div className="card-label">库存预警</div>
+            <div className="card-value">
+              {card.value}
+              <span className="unit">{card.unit}</span>
             </div>
-          </div>
-        </StatsCard>
-
-        <StatsCard
-          variants={itemVariants}
-          $accent={designTokens.colors.success.gradient}
-          $iconBg="rgba(16, 185, 129, 0.1)"
-          $iconColor={designTokens.colors.success.main}
-          $iconShadow="rgba(16, 185, 129, 0.2)"
-          $borderColor={designTokens.colors.success.main}
-          whileHover={{ y: -6 }}
-        >
-          <div className="card-content">
-            <div className="card-header">
-              <div className="card-icon">
-                <ArrowDownOutlined />
-              </div>
-              <div className="card-trend up">
-                <RiseOutlined /> 入库
-              </div>
-            </div>
-            <div className="card-body">
-              <div className="card-value" style={{ color: designTokens.colors.success.main }}>
-                {stats?.inQuantity || 0}
-              </div>
-              <div className="card-label">期间入库</div>
-            </div>
-          </div>
-        </StatsCard>
-
-        <StatsCard
-          variants={itemVariants}
-          $accent={designTokens.colors.secondary.gradient}
-          $iconBg="rgba(236, 72, 153, 0.1)"
-          $iconColor={designTokens.colors.secondary.main}
-          $iconShadow="rgba(236, 72, 153, 0.2)"
-          $borderColor={designTokens.colors.secondary.main}
-          whileHover={{ y: -6 }}
-        >
-          <div className="card-content">
-            <div className="card-header">
-              <div className="card-icon">
-                <ArrowUpOutlined />
-              </div>
-              <div className="card-trend neutral">
-                <FallOutlined /> 出库
-              </div>
-            </div>
-            <div className="card-body">
-              <div className="card-value" style={{ color: designTokens.colors.secondary.main }}>
-                {stats?.outQuantity || 0}
-              </div>
-              <div className="card-label">期间出库</div>
-            </div>
-          </div>
-        </StatsCard>
+            <div className="card-label">{card.label}</div>
+            {card.foot && <div className="card-foot">{card.foot}</div>}
+          </StatsCard>
+        ))}
       </StatsGrid>
 
       <BentoGrid variants={containerVariants} initial="hidden" animate="visible">
+        {/* 出入库可视化对比 - 大块 */}
         <BentoCard
           variants={itemVariants}
-          $col="span 6"
+          $col="span 7"
           $iconBg={designTokens.colors.info.gradient}
         >
           <div className="card-header">
@@ -1373,87 +1456,68 @@ const ConsumableStatistics = () => {
               <div className="header-icon">
                 <ShoppingCartOutlined />
               </div>
-              <span className="header-title">出入库统计</span>
+              <span className="header-title">出入库流量分析</span>
             </div>
             <div className="header-extra">
               {dateRange[0]?.format('MM/DD')} - {dateRange[1]?.format('MM/DD')}
             </div>
           </div>
           <div className="card-body">
-            <InOutComparison>
-              <ComparisonItem
-                $bg="rgba(16, 185, 129, 0.04)"
-                $color={designTokens.colors.success.main}
-              >
-                <div className="item-icon">
-                  <ArrowDownOutlined />
+            <InOutVisualization>
+              <ComparisonRow $barColor={designTokens.colors.success.main}>
+                <div className="row-head">
+                  <div className="row-label">
+                    <ArrowDownOutlined style={{ color: designTokens.colors.success.main }} />
+                    入库
+                  </div>
+                  <div className="row-value">
+                    {stats?.inQuantity || 0}
+                    <span className="row-count">/ {stats?.inCount || 0} 次</span>
+                  </div>
                 </div>
-                <div className="item-value">{stats?.inCount || 0}</div>
-                <div className="item-label">入库次数</div>
-                <div className="item-sub">
-                  共 <strong>{stats?.inQuantity || 0}</strong> 件
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${inRatio}%` }} />
                 </div>
-              </ComparisonItem>
-              <ComparisonItem
-                $bg="rgba(99, 102, 241, 0.04)"
-                $color={designTokens.colors.primary.main}
-              >
-                <div className="item-icon">
-                  <ArrowUpOutlined />
+              </ComparisonRow>
+
+              <ComparisonRow $barColor={designTokens.colors.secondary.main}>
+                <div className="row-head">
+                  <div className="row-label">
+                    <ArrowUpOutlined style={{ color: designTokens.colors.secondary.main }} />
+                    出库
+                  </div>
+                  <div className="row-value">
+                    {stats?.outQuantity || 0}
+                    <span className="row-count">/ {stats?.outCount || 0} 次</span>
+                  </div>
                 </div>
-                <div className="item-value">{stats?.outCount || 0}</div>
-                <div className="item-label">出库次数</div>
-                <div className="item-sub">
-                  共 <strong>{stats?.outQuantity || 0}</strong> 件
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${outRatio}%` }} />
                 </div>
-              </ComparisonItem>
-            </InOutComparison>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              style={{
-                marginTop: 20,
-                padding: '18px 24px',
-                background: `linear-gradient(135deg, ${netQuantity >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'} 0%, ${netQuantity >= 0 ? 'rgba(5, 150, 105, 0.04)' : 'rgba(185, 28, 28, 0.04)'} 100%)`,
-                borderRadius: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12,
-                border: `1px solid ${netQuantity >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-              }}
-            >
-              {netQuantity >= 0 ? (
-                <>
-                  <RiseOutlined style={{ color: designTokens.colors.success.main, fontSize: 20 }} />
-                  <Text
-                    style={{
-                      color: designTokens.colors.success.main,
-                      fontWeight: 600,
-                      fontSize: 15,
-                    }}
-                  >
-                    净入库 +{netQuantity} 件
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <FallOutlined style={{ color: designTokens.colors.error.main, fontSize: 20 }} />
-                  <Text
-                    style={{ color: designTokens.colors.error.main, fontWeight: 600, fontSize: 15 }}
-                  >
-                    净出库 {Math.abs(netQuantity)} 件
-                  </Text>
-                </>
-              )}
-            </motion.div>
+              </ComparisonRow>
+
+              <NetFlowBadge $positive={netQuantity >= 0}>
+                <div className="net-label">
+                  {netQuantity >= 0 ? (
+                    <RiseOutlined style={{ color: designTokens.colors.success.main }} />
+                  ) : (
+                    <FallOutlined style={{ color: designTokens.colors.error.main }} />
+                  )}
+                  {netQuantity >= 0 ? '净入库' : '净出库'}
+                </div>
+                <div className="net-value">
+                  {netQuantity >= 0 ? '+' : ''}
+                  {netQuantity} 件
+                </div>
+              </NetFlowBadge>
+            </InOutVisualization>
           </div>
         </BentoCard>
 
+        {/* 类别分布环形图 - 小块 */}
         <BentoCard
           variants={itemVariants}
-          $col="span 6"
+          $col="span 5"
           $iconBg={designTokens.colors.secondary.gradient}
         >
           <div className="card-header">
@@ -1463,30 +1527,49 @@ const ConsumableStatistics = () => {
               </div>
               <span className="header-title">类别分布</span>
             </div>
+            <div className="header-extra">共 {donutData.total} 种</div>
           </div>
           <div className="card-body">
-            {summary?.byCategory?.length > 0 ? (
-              <CategoryGrid>
-                {summary.byCategory.slice(0, 8).map((item, index) => (
-                  <CategoryCard
-                    key={item.category}
-                    $color={getCategoryColor(item.category)}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <div className="category-badge">
-                      <span className="dot" />
-                      {item.category}
+            {donutSegments.length > 0 ? (
+              <DonutWrapper>
+                <svg className="donut-svg" width={130} height={130} viewBox="0 0 130 130">
+                  {donutSegments.map((seg, idx) => {
+                    // 防止 angle === 360 时画不出
+                    const safeEnd =
+                      seg.endAngle - seg.startAngle >= 360 ? seg.endAngle - 0.01 : seg.endAngle;
+                    return (
+                      <path
+                        key={idx}
+                        d={describeArc(65, 65, 60, 38, seg.startAngle, safeEnd)}
+                        fill={seg.color}
+                        opacity={0.9}
+                      >
+                        <title>{`${seg.category}: ${seg.count} (${seg.percentage.toFixed(1)}%)`}</title>
+                      </path>
+                    );
+                  })}
+                  <text x="65" y="58" className="donut-center">
+                    <tspan className="donut-value">{donutData.total}</tspan>
+                  </text>
+                  <text x="65" y="76" className="donut-center">
+                    <tspan className="donut-label">总种类</tspan>
+                  </text>
+                </svg>
+                <div className="legend">
+                  {donutSegments.map((seg, idx) => (
+                    <div className="legend-item" key={idx}>
+                      <span
+                        className="legend-dot"
+                        style={{ background: seg.color }}
+                      />
+                      <span className="legend-name" title={seg.category}>
+                        {seg.category}
+                      </span>
+                      <span className="legend-value">{seg.count}</span>
                     </div>
-                    <div className="category-count">{item.count}</div>
-                    <div className="category-label">种耗材</div>
-                    <div className="category-stock">
-                      库存: <strong>{item.totalQuantity || 0}</strong>
-                    </div>
-                  </CategoryCard>
-                ))}
-              </CategoryGrid>
+                  ))}
+                </div>
+              </DonutWrapper>
             ) : (
               <EmptyState>
                 <PieChartOutlined className="empty-icon" />
@@ -1499,9 +1582,10 @@ const ConsumableStatistics = () => {
       </BentoGrid>
 
       <BentoGrid variants={containerVariants} initial="hidden" animate="visible">
+        {/* 库存预警 - 小块 */}
         <BentoCard
           variants={itemVariants}
-          $col="span 6"
+          $col="span 5"
           $iconBg={designTokens.colors.warning.gradient}
         >
           <div className="card-header">
@@ -1519,19 +1603,19 @@ const ConsumableStatistics = () => {
             ) : (
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   color: designTokens.colors.success.main,
                   fontWeight: 500,
-                  padding: '4px 10px',
+                  padding: '3px 8px',
                   background: 'rgba(16, 185, 129, 0.1)',
-                  borderRadius: 8,
+                  borderRadius: 6,
                 }}
               >
                 全部充足
               </span>
             )}
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body no-pad">
             <StyledTable
               columns={lowStockColumns}
               dataSource={lowStockItems}
@@ -1546,7 +1630,7 @@ const ConsumableStatistics = () => {
                 onChange: page => setLowStockPagination(prev => ({ ...prev, current: page })),
               }}
               size="small"
-              scroll={{ x: 'max-content', y: 300 }}
+              scroll={{ x: 'max-content', y: 280 }}
               locale={{
                 emptyText: (
                   <EmptyState>
@@ -1563,9 +1647,10 @@ const ConsumableStatistics = () => {
           </div>
         </BentoCard>
 
+        {/* 最近记录 - 大块 */}
         <BentoCard
           variants={itemVariants}
-          $col="span 6"
+          $col="span 7"
           $iconBg={designTokens.colors.success.gradient}
         >
           <div className="card-header">
@@ -1573,11 +1658,11 @@ const ConsumableStatistics = () => {
               <div className="header-icon">
                 <HistoryOutlined />
               </div>
-              <span className="header-title">最近记录</span>
+              <span className="header-title">最近出入库记录</span>
             </div>
-            <div className="header-extra">最近10条</div>
+            <div className="header-extra">最近 10 条</div>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body no-pad">
             <StyledTable
               columns={recentColumns}
               dataSource={stats?.recentRecords || []}
