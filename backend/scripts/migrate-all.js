@@ -158,6 +158,11 @@ const migrations = [
     description: '初始化 113 条权限种子数据，构建三级权限体系（v2.3.5）',
     migrate: migrateInitPermissions,
   },
+  {
+    name: '管理员角色权限修复',
+    description: '将 admin 角色权限设置为 ["*"]，修复生产环境升级后显示无权限问题（v2.3.5）',
+    migrate: migrateAdminRolePermissions,
+  },
 ];
 
 async function runMigrations() {
@@ -1069,6 +1074,31 @@ async function migrateInitPermissions() {
   const { initPermissions } = require('./init-permissions');
   const count = await initPermissions();
   console.log(`    权限种子数据初始化完成，共处理 ${count} 条`);
+}
+
+/**
+ * 修复 admin 角色权限（v2.3.5）
+ * 将 admin 角色的 permissions 字段设置为 ["*"]
+ * 解决生产环境升级后 admin 角色显示"无权限"的问题
+ */
+async function migrateAdminRolePermissions() {
+  const Role = require('../models/Role');
+
+  const adminRole = await Role.findOne({ where: { roleCode: 'admin' } });
+  if (!adminRole) {
+    console.log('    admin 角色不存在，跳过');
+    return;
+  }
+
+  const currentPerms = adminRole.permissions || [];
+  if (currentPerms.length === 1 && currentPerms[0] === '*') {
+    console.log('    admin 角色权限已为 ["*"]，跳过');
+    return;
+  }
+
+  adminRole.permissions = ['*'];
+  await adminRole.save();
+  console.log('    admin 角色权限已修复为 ["*"]');
 }
 
 // 执行迁移

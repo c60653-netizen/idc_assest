@@ -75,7 +75,7 @@ router.post('/register', async (req, res) => {
           roleCode: 'admin',
           description: '系统管理员，拥有所有权限',
           status: 'active',
-          permissions: [],
+          permissions: ['*'],
         });
       }
 
