@@ -5,6 +5,8 @@ const { Op } = require('sequelize');
 const Device = require('../models/Device');
 const Rack = require('../models/Rack');
 const Room = require('../models/Room');
+const requirePermission = require('../middleware/requirePermission');
+const { authMiddleware } = require('../middleware/auth');
 const {
   logDeviceOperation,
   generateDeviceDescription,
@@ -35,7 +37,7 @@ async function generateIdleDeviceId() {
   return `DEV${String(newNumber).padStart(4, '0')}`;
 }
 
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, requirePermission('idle:view'), async (req, res) => {
   try {
     const { keyword, sourceType, idleReason, page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -89,7 +91,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:deviceId', async (req, res) => {
+router.get('/:deviceId', authMiddleware, requirePermission('idle:view'), async (req, res) => {
   try {
     const device = await Device.findOne({
       where: { deviceId: req.params.deviceId, isIdle: true },
@@ -117,7 +119,7 @@ router.get('/:deviceId', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, requirePermission('idle:shelve'), async (req, res) => {
   try {
     const {
       name,
@@ -208,7 +210,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.post('/from-device/:deviceId', async (req, res) => {
+router.post('/from-device/:deviceId', authMiddleware, requirePermission('idle:shelve'), async (req, res) => {
   const t = await require('../db').sequelize.transaction();
   try {
     const { idleReason } = req.body;
@@ -267,7 +269,7 @@ router.post('/from-device/:deviceId', async (req, res) => {
   }
 });
 
-router.post('/batch-from-devices', async (req, res) => {
+router.post('/batch-from-devices', authMiddleware, requirePermission('idle:shelve'), async (req, res) => {
   const t = await require('../db').sequelize.transaction();
   try {
     const { deviceIds, idleReason } = req.body;
@@ -343,7 +345,7 @@ router.post('/batch-from-devices', async (req, res) => {
   }
 });
 
-router.put('/batch-restore', async (req, res) => {
+router.put('/batch-restore', authMiddleware, requirePermission('idle:restore'), async (req, res) => {
   const t = await require('../db').sequelize.transaction();
   try {
     const { devices } = req.body;
@@ -528,7 +530,7 @@ router.put('/batch-restore', async (req, res) => {
   }
 });
 
-router.put('/:deviceId/shelve', async (req, res) => {
+router.put('/:deviceId/shelve', authMiddleware, requirePermission('idle:shelve'), async (req, res) => {
   const t = await require('../db').sequelize.transaction();
   try {
     const { deviceId } = req.params;
@@ -649,7 +651,7 @@ router.put('/:deviceId/shelve', async (req, res) => {
   }
 });
 
-router.put('/:deviceId', async (req, res) => {
+router.put('/:deviceId', authMiddleware, requirePermission('idle:edit'), async (req, res) => {
   try {
     const device = await Device.findOne({
       where: { deviceId: req.params.deviceId, isIdle: true },
@@ -726,7 +728,7 @@ router.put('/:deviceId', async (req, res) => {
   }
 });
 
-router.put('/:deviceId/restore', async (req, res) => {
+router.put('/:deviceId/restore', authMiddleware, requirePermission('idle:restore'), async (req, res) => {
   const t = await require('../db').sequelize.transaction();
   try {
     const { targetRackId, targetPosition } = req.body;
@@ -835,7 +837,7 @@ router.put('/:deviceId/restore', async (req, res) => {
   }
 });
 
-router.delete('/:deviceId', async (req, res) => {
+router.delete('/:deviceId', authMiddleware, requirePermission('idle:delete'), async (req, res) => {
   const t = await require('../db').sequelize.transaction();
   try {
     const device = await Device.findOne({

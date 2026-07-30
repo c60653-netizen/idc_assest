@@ -3,13 +3,14 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const { authMiddleware } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 const Device = require('../models/Device');
 const Rack = require('../models/Rack');
 const Room = require('../models/Room');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requirePermission('dashboard:view'), async (req, res) => {
   try {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

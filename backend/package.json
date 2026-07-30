@@ -1,6 +1,6 @@
 {
   "name": "idc-backend",
-  "version": "2.3.5",
+  "version": "2.4.0",
   "description": "IDC设备管理系统后端",
   "author": "gituib",
   "license": "MIT",
@@ -19,6 +19,8 @@
     "create-indexes": "node create_indexes.js",
     "check-indexes": "node create_indexes.js check",
     "drop-indexes": "node create_indexes.js drop",
+    "init-database": "node scripts/init-database.js",
+    "init-permissions": "node scripts/init-permissions.js",
     "lint": "eslint . --ext js --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext js --fix",
     "format": "prettier --write \"**/*.js\"",

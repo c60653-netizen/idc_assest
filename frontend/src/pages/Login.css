@@ -802,6 +802,45 @@
   text-decoration: none;
 }
 
+/* 记住密码 + 忘记密码 同一行布局 */
+.login-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 记住密码 复选框样式（Claymorphism 风格协调） */
+.remember-checkbox.ant-checkbox-wrapper {
+  font-size: 13px;
+  color: var(--lp-text-secondary, #475569);
+  user-select: none;
+  align-items: center;
+}
+
+.remember-checkbox .ant-checkbox-inner {
+  border-radius: 6px;
+  border: 1.5px solid var(--lp-border, #cbd5e1);
+  background: var(--lp-input-bg, #fff);
+  transition: all var(--lp-transition, 0.2s);
+}
+
+.remember-checkbox .ant-checkbox-inner:hover {
+  border-color: var(--lp-primary, #14b8a6);
+}
+
+.remember-checkbox.ant-checkbox-wrapper-checked .ant-checkbox-inner {
+  background: var(--lp-primary, #14b8a6);
+  border-color: var(--lp-primary, #14b8a6);
+}
+
+.remember-checkbox.ant-checkbox-wrapper:hover .ant-checkbox-inner {
+  border-color: var(--lp-primary, #14b8a6);
+}
+
 .forgot-link::after {
   content: '';
   position: absolute;

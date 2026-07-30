@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const FaultCategory = require('../models/FaultCategory');
+const requirePermission = require('../middleware/requirePermission');
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('ticket:view'), async (req, res) => {
   try {
     const { isActive } = req.query;
     const where = {};
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/stats', async (req, res) => {
+router.get('/stats', requirePermission('ticket:view'), async (req, res) => {
   try {
     const Ticket = require('../models/Ticket');
     const { startDate, endDate } = req.query;
@@ -81,7 +82,7 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-router.get('/:categoryId', async (req, res) => {
+router.get('/:categoryId', requirePermission('ticket:view'), async (req, res) => {
   try {
     const category = await FaultCategory.findByPk(req.params.categoryId);
     if (!category) {
@@ -93,7 +94,7 @@ router.get('/:categoryId', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('ticket:category:create'), async (req, res) => {
   try {
     const { name, description, priority, defaultPriority, expectedDuration, solutions, isActive } =
       req.body;
@@ -123,7 +124,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.post('/init', async (req, res) => {
+router.post('/init', requirePermission('ticket:category:create'), async (req, res) => {
   try {
     const defaultCategories = [
       {
@@ -209,7 +210,7 @@ router.post('/init', async (req, res) => {
   }
 });
 
-router.put('/:categoryId', async (req, res) => {
+router.put('/:categoryId', requirePermission('ticket:category:edit'), async (req, res) => {
   try {
     const category = await FaultCategory.findByPk(req.params.categoryId);
     if (!category) {
@@ -223,7 +224,7 @@ router.put('/:categoryId', async (req, res) => {
   }
 });
 
-router.delete('/:categoryId', async (req, res) => {
+router.delete('/:categoryId', requirePermission('ticket:category:delete'), async (req, res) => {
   try {
     const category = await FaultCategory.findByPk(req.params.categoryId);
     if (!category) {
@@ -243,7 +244,7 @@ router.delete('/:categoryId', async (req, res) => {
   }
 });
 
-router.patch('/:categoryId/toggle', async (req, res) => {
+router.patch('/:categoryId/toggle', requirePermission('ticket:category:edit'), async (req, res) => {
   try {
     const category = await FaultCategory.findByPk(req.params.categoryId);
     if (!category) {

@@ -965,3 +965,361 @@ body {
   opacity: 0.3 !important;
   cursor: not-allowed !important;
 }
+
+/* ========== 拓扑图(浅色主题) ========== */
+
+/* 自定义边流动动画:更明显的数据流向 */
+.topo-edge-flowing {
+  stroke-dasharray: 6 4;
+  animation: topo-flow-line 0.8s linear infinite;
+}
+
+/* ReactFlow 默认 animated 边的流动动画(兼容) */
+.react-flow__edge.animated path {
+  stroke-dasharray: 6 4;
+  animation: topo-flow-line 0.8s linear infinite;
+}
+
+@keyframes topo-flow-line {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* 选中边的高亮 */
+.react-flow__edge.selected path {
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 6px rgba(24, 144, 255, 0.4));
+}
+
+/* 边统一手型光标(避免多 path 的 cursor 闪烁) */
+.react-flow__edge {
+  cursor: pointer;
+}
+
+/* 隐藏 ReactFlow 默认节点选中边框(节点自身已实现选中样式) */
+.react-flow__node.selected .react-flow__node-inner {
+  box-shadow: none;
+}
+
+/* Controls 按钮(浅色,与画布一致) */
+.react-flow__controls-button {
+  background: #fff !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #f5f5f5 !important;
+}
+
+.react-flow__controls-button svg {
+  fill: rgba(0, 0, 0, 0.65);
+}
+
+/* MiniMap(浅色) */
+.react-flow__minimap {
+  background: #fafafa !important;
+}
+
+/* Attribution 文字颜色适配浅色背景 */
+.react-flow__attribution {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.react-flow__attribution a {
+  color: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* ========== 拓扑图 Drawer 浅色 ========== */
+
+/* Drawer 遮罩层 */
+.topo-light-drawer .ant-drawer-mask {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Drawer 内容容器 */
+.topo-light-drawer .ant-drawer-content {
+  background: #fff;
+}
+
+/* Drawer 关闭按钮颜色 */
+.topo-light-drawer .ant-drawer-close {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.topo-light-drawer .ant-drawer-close:hover {
+  color: rgba(0, 0, 0, 0.88);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ========== 拓扑图 Select 下拉浅色 ========== */
+
+.topo-light-dropdown.ant-select-dropdown {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  overflow: hidden;
+}
+
+.topo-light-dropdown .ant-select-item {
+  color: rgba(0, 0, 0, 0.85);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.topo-light-dropdown .ant-select-item-option-active {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f4ff 100%) !important;
+  transform: translateX(2px);
+}
+
+.topo-light-dropdown .ant-select-item-option-selected {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%) !important;
+  color: #096dd9;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #1890ff;
+}
+
+.topo-light-dropdown .ant-select-item-option-selected .ant-select-item-option-state {
+  color: #1890ff;
+}
+
+/* 分组标题美化 */
+.topo-light-dropdown .ant-select-item-group {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 8px 10px 4px;
+  text-transform: uppercase;
+  border-bottom: 1px dashed #f0f0f0;
+  margin-bottom: 2px;
+}
+
+.topo-light-dropdown .ant-select-item-group:first-child {
+  padding-top: 4px;
+}
+
+/* 空状态文字颜色 */
+.topo-light-dropdown .ant-select-item-empty {
+  color: rgba(0, 0, 0, 0.35);
+  padding: 24px 12px;
+  text-align: center;
+}
+
+/* ========== Cascader 级联选择器美化 ========== */
+
+.topo-light-modal .ant-cascader {
+  width: 100%;
+}
+
+.topo-light-modal .ant-cascader .ant-select-selector {
+  background: linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%) !important;
+  border: 1px solid #e4e7ed !important;
+  border-radius: 10px !important;
+  padding: 4px 11px !important;
+  min-height: 32px !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+.topo-light-modal .ant-cascader .ant-select-selector:hover {
+  border-color: #40a9ff !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.12) !important;
+}
+
+.topo-light-modal .ant-cascader.ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.12), 0 2px 8px rgba(24, 144, 255, 0.1) !important;
+}
+
+.topo-light-modal .ant-cascader .ant-select-selection-placeholder {
+  color: rgba(0, 0, 0, 0.4) !important;
+  font-size: 12px;
+}
+
+.topo-light-modal .ant-cascader .ant-select-arrow {
+  color: rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.2s ease;
+}
+
+.topo-light-modal .ant-cascader.ant-select-open .ant-select-arrow {
+  transform: rotate(180deg);
+}
+
+/* Cascader 下拉面板 */
+.topo-light-dropdown.ant-cascader-dropdown {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 4px;
+}
+
+.topo-light-dropdown.ant-cascader-dropdown .ant-cascader-menu {
+  border-radius: 8px;
+  border: 1px solid #f5f5f5;
+  background: #fff;
+  min-width: 180px;
+}
+
+.topo-light-dropdown.ant-cascader-dropdown .ant-cascader-menu-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.topo-light-dropdown.ant-cascader-dropdown .ant-cascader-menu-item:hover {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f4ff 100%);
+  color: #1890ff;
+}
+
+.topo-light-dropdown.ant-cascader-dropdown .ant-cascader-menu-item-active {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+  color: #096dd9;
+  font-weight: 600;
+}
+
+/* ========== 交换机选择器美化 ========== */
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-selector {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%) !important;
+  border: 1px solid #e4e7ed !important;
+  border-radius: 10px !important;
+  padding: 6px 11px !important;
+  min-height: 36px !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-selector:hover {
+  border-color: #40a9ff !important;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.12) !important;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader).ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.12), 0 2px 8px rgba(24, 144, 255, 0.1) !important;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-selection-placeholder {
+  color: rgba(0, 0, 0, 0.4) !important;
+  font-size: 12px;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-selection-item {
+  color: rgba(0, 0, 0, 0.85) !important;
+  font-weight: 500;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-arrow {
+  color: rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.2s ease;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader).ant-select-open .ant-select-arrow {
+  transform: rotate(180deg);
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-clear {
+  background: linear-gradient(180deg, #fff 0%, #f5f7fa 100%) !important;
+  color: rgba(0, 0, 0, 0.4) !important;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.topo-light-modal .ant-select:not(.ant-cascader) .ant-select-clear:hover {
+  color: #ff4d4f !important;
+  background: #fff2f0 !important;
+}
+
+/* ========== 拓扑图 Modal 浅色适配 ========== */
+
+/* Modal 关闭按钮 */
+.topo-light-modal .ant-modal-close {
+  color: rgba(0, 0, 0, 0.45);
+  transition: all 0.2s ease;
+}
+
+.topo-light-modal .ant-modal-close:hover {
+  color: rgba(0, 0, 0, 0.88);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Modal 头部标题颜色 */
+.topo-light-modal .ant-modal-title {
+  color: rgba(0, 0, 0, 0.88);
+}
+
+/* Modal 内 Spin 文字颜色 */
+.topo-light-modal .ant-spin-text {
+  color: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Modal 内 Alert 圆角 */
+.topo-light-modal .ant-alert {
+  border-radius: 10px !important;
+}
+
+/* ========== 拓扑图双模式节点(新增) ========== */
+
+/* 节点容器:禁用 ReactFlow 默认 pointerEvents,让内部可点击 */
+.react-flow__node-device {
+  cursor: pointer;
+}
+
+/* 节点 hover 时整体抬升 */
+.react-flow__node-device:hover {
+  z-index: 10;
+}
+
+/* 状态色环呼吸动画(仅在线状态启用,轻微) */
+@keyframes topo-status-pulse {
+  0%, 100% { box-shadow: 0 0 6px currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 10px currentColor; opacity: 0.85; }
+}
+
+/* 告警角标抖动动画(吸引注意力) */
+@keyframes topo-alert-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+
+/* 选中节点的高亮描边(替代 ReactFlow 默认 box-shadow) */
+.react-flow__node-device.selected {
+  box-shadow: none !important;
+}
+
+/* 节点内部 Tooltip 文字色(浅色) */
+.react-flow__node-device .ant-tooltip-inner {
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+}
+
+/* Segmented 模式切换器紧凑化(通用浅色) */
+.ant-segmented {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.ant-segmented-item {
+  color: rgba(0, 0, 0, 0.65);
+  transition: all 0.2s ease;
+}
+
+.ant-segmented-item-selected {
+  background: #fff;
+  color: #1890ff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}

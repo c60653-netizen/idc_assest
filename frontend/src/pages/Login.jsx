@@ -4,6 +4,7 @@ import {
   Form,
   Input,
   Button,
+  Checkbox,
   message,
   Typography,
   Alert,
@@ -28,16 +29,83 @@ import './Login.css';
 
 const { Title, Text } = Typography;
 
+// 记住密码凭据存储 key
+const REMEMBER_KEY = 'idc_remember_credentials';
+
+// 简单编码/解码，避免 localStorage 中明文显示密码（非加密，仅防偷看）
+const encodeCreds = (str) => {
+  try {
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (e) {
+    return '';
+  }
+};
+
+const decodeCreds = (str) => {
+  try {
+    return decodeURIComponent(escape(atob(str)));
+  } catch (e) {
+    return '';
+  }
+};
+
+// 读取已保存的凭据
+const loadRememberedCredentials = () => {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    if (!raw) return null;
+    const decoded = decodeCreds(raw);
+    if (!decoded) return null;
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      username: parsed.username || '',
+      password: parsed.password || '',
+    };
+  } catch (e) {
+    return null;
+  }
+};
+
+const saveRememberedCredentials = (username, password) => {
+  try {
+    const data = JSON.stringify({ username, password });
+    localStorage.setItem(REMEMBER_KEY, encodeCreds(data));
+  } catch (e) {
+    // 忽略写入异常（如隐私模式）
+  }
+};
+
+const clearRememberedCredentials = () => {
+  try {
+    localStorage.removeItem(REMEMBER_KEY);
+  } catch (e) {
+    // 忽略
+  }
+};
+
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isFirstUser, setIsFirstUser] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
   const { login, register, checkAdmin } = useAuth();
   const navigate = useNavigate();
+  const [form] = Form.useForm();
 
   useEffect(() => {
     checkIsFirstUser();
-  }, []);
+    // 初始化：读取已记住的凭据并填充表单
+    const saved = loadRememberedCredentials();
+    if (saved && saved.username) {
+      form.setFieldsValue({
+        username: saved.username,
+        password: saved.password,
+        remember: true,
+      });
+    } else {
+      form.setFieldsValue({ remember: false });
+    }
+  }, [form]);
 
   const checkIsFirstUser = async () => {
     try {
@@ -55,6 +123,12 @@ const Login = () => {
     try {
       const result = await login(values.username, values.password);
       if (result.success) {
+        // 登录成功后根据"记住密码"勾选保存或清除凭据
+        if (values.remember) {
+          saveRememberedCredentials(values.username, values.password);
+        } else {
+          clearRememberedCredentials();
+        }
         message.success('登录成功');
         navigate('/dashboard');
       } else {
@@ -310,6 +384,7 @@ const Login = () => {
             )}
 
             <Form
+              form={form}
               name={isFirstUser || registerMode ? 'register' : 'login'}
               layout="vertical"
               onFinish={isFirstUser ? onFinishRegister : (registerMode ? onFinishRegister : onFinishLogin)}
@@ -401,7 +476,14 @@ const Login = () => {
               </Form.Item>
 
               {!isFirstUser && !registerMode && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -8, marginBottom: 12 }}>
+                <div className="login-options-row">
+                  <Form.Item
+                    name="remember"
+                    valuePropName="checked"
+                    noStyle
+                  >
+                    <Checkbox className="remember-checkbox">记住密码</Checkbox>
+                  </Form.Item>
                   <Link
                     to="/forgot-password"
                     className="forgot-link"

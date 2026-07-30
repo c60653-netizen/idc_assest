@@ -14,6 +14,10 @@ import {
   Avatar,
   Tooltip,
   Badge,
+  Divider,
+  Progress,
+  Row,
+  Col,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,16 +29,45 @@ import {
   CameraOutlined,
   CheckOutlined,
   CloseOutlined,
+  SearchOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  IdcardOutlined,
+  KeyOutlined,
+  TeamOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { userAPI, roleAPI } from '../api';
 import CloseButton from '../components/CloseButton';
 
 const { Option } = Select;
 
+/**
+ * 计算密码强度
+ * @param {string} password - 密码
+ * @returns {{ score: number, label: string, color: string }} 强度评分
+ */
+const getPasswordStrength = (password) => {
+  if (!password) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (password.length >= 6) score += 25;
+  if (password.length >= 10) score += 10;
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 20;
+  if (/\d/.test(password)) score += 15;
+  if (/[^a-zA-Z\d]/.test(password)) score += 30;
+  if (password.length >= 8 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^a-zA-Z\d]/.test(password)) score = 100;
+  const clamped = Math.min(100, Math.max(0, score));
+  if (clamped <= 30) return { score: clamped, label: '弱', color: '#ff4d4f' };
+  if (clamped <= 60) return { score: clamped, label: '中', color: '#faad14' };
+  if (clamped <= 80) return { score: clamped, label: '强', color: '#52c41a' };
+  return { score: clamped, label: '非常强', color: '#1677ff' };
+};
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [modalVisible, setModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -44,6 +77,10 @@ const UserManagement = () => {
   const [avatarUser, setAvatarUser] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: '', color: '' });
+  const [searchUsername, setSearchUsername] = useState('');
+  const [searchRealName, setSearchRealName] = useState('');
+  const [committedSearch, setCommittedSearch] = useState({ username: '', realName: '' });
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const fileInputRef = useRef(null);
@@ -58,6 +95,12 @@ const UserManagement = () => {
       if (activeTab !== 'all') {
         params.status = activeTab;
       }
+      if (committedSearch.username) {
+        params.username = committedSearch.username;
+      }
+      if (committedSearch.realName) {
+        params.realName = committedSearch.realName;
+      }
       const response = await userAPI.list(params);
       if (response.success) {
         setUsers(response.data.users);
@@ -68,7 +111,7 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.current, pagination.pageSize, activeTab]);
+  }, [pagination.current, pagination.pageSize, activeTab, committedSearch]);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -99,6 +142,15 @@ const UserManagement = () => {
     form.resetFields();
     setModalVisible(true);
   }, []);
+
+  /**
+   * 搜索用户
+   * 将输入值提交到 committedSearch，重置分页到第一页
+   */
+  const handleSearch = useCallback(() => {
+    setCommittedSearch({ username: searchUsername, realName: searchRealName });
+    setPagination(prev => ({ ...prev, current: 1 }));
+  }, [searchUsername, searchRealName]);
 
   const handleEdit = useCallback(user => {
     setEditingUser(user);
@@ -224,6 +276,8 @@ const UserManagement = () => {
 
   const handleSubmit = useCallback(
     async values => {
+      if (submitting) return; // 防止重复提交
+      setSubmitting(true);
       try {
         let response;
         if (editingUser) {
@@ -241,9 +295,11 @@ const UserManagement = () => {
         }
       } catch (error) {
         message.error('操作失败');
+      } finally {
+        setSubmitting(false);
       }
     },
-    [editingUser, fetchUsers]
+    [editingUser, fetchUsers, submitting]
   );
 
   const handleResetPasswordSubmit = useCallback(
@@ -583,6 +639,35 @@ const UserManagement = () => {
         </Space>
       </div>
 
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <Input
+          placeholder="搜索用户名"
+          value={searchUsername}
+          onChange={e => setSearchUsername(e.target.value)}
+          onPressEnter={handleSearch}
+          allowClear
+          style={{ width: 200, borderRadius: '8px' }}
+          prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+        />
+        <Input
+          placeholder="搜索真实姓名"
+          value={searchRealName}
+          onChange={e => setSearchRealName(e.target.value)}
+          onPressEnter={handleSearch}
+          allowClear
+          style={{ width: 200, borderRadius: '8px' }}
+          prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+        />
+        <Button
+          type="primary"
+          icon={<SearchOutlined />}
+          onClick={handleSearch}
+          style={{ borderRadius: '8px', height: '36px' }}
+        >
+          搜索
+        </Button>
+      </div>
+
       <Card
         style={cardStyle}
         styles={{ header: cardHeadStyle, body: { padding: '20px 24px' } }}
@@ -626,35 +711,75 @@ const UserManagement = () => {
         }
         open={modalVisible}
         closeIcon={<CloseButton />}
-        onCancel={() => setModalVisible(false)}
+        onCancel={() => {
+          setModalVisible(false);
+          setPasswordStrength({ score: 0, label: '', color: '' });
+        }}
         footer={null}
-        width={500}
+        width={560}
         destroyOnHidden
         styles={{
-          body: { padding: '24px' },
+          body: { padding: '20px 24px' },
           header: { borderBottom: '1px solid #f0f0f0', padding: '16px 24px' },
         }}
         style={{ borderRadius: '16px', overflow: 'hidden' }}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: '20px' }}>
-          <Form.Item
-            name="username"
-            label="用户名"
-            rules={[
-              { required: true, message: '请输入用户名' },
-              { min: 3, max: 20, message: '用户名长度必须在3-20个字符之间' },
-            ]}
-          >
-            <Input placeholder="请输入用户名" style={{ borderRadius: '8px' }} />
-          </Form.Item>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          validateTrigger="onBlur"
+          onValuesChange={(changedValues) => {
+            if (changedValues.password) {
+              setPasswordStrength(getPasswordStrength(changedValues.password));
+            }
+          }}
+        >
+          {/* ===== 基本信息 ===== */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <IdcardOutlined style={{ color: '#667eea', fontSize: '16px' }} />
+            <span style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>基本信息</span>
+          </div>
 
-          <Form.Item
-            name="realName"
-            label="真实姓名"
-            rules={[{ required: true, message: '请输入真实姓名' }]}
-          >
-            <Input placeholder="请输入真实姓名" style={{ borderRadius: '8px' }} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="username"
+                label="用户名"
+                rules={[
+                  { required: true, message: '请输入用户名' },
+                  { min: 3, max: 20, message: '3-20个字符' },
+                ]}
+              >
+                <Input
+                  placeholder="请输入用户名"
+                  prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="realName"
+                label="真实姓名"
+                rules={[{ required: true, message: '请输入真实姓名' }]}
+              >
+                <Input
+                  placeholder="请输入真实姓名"
+                  prefix={<IdcardOutlined style={{ color: '#bfbfbf' }} />}
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider style={{ margin: '0 0 16px 0' }} />
+
+          {/* ===== 联系方式 ===== */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <MailOutlined style={{ color: '#667eea', fontSize: '16px' }} />
+            <span style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>联系方式</span>
+          </div>
 
           <Form.Item
             name="email"
@@ -664,20 +789,41 @@ const UserManagement = () => {
               { type: 'email', message: '请输入有效的邮箱地址' },
             ]}
           >
-            <Input placeholder="请输入邮箱" style={{ borderRadius: '8px' }} />
+            <Input
+              placeholder="请输入邮箱地址"
+              prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
+              style={{ borderRadius: '8px' }}
+            />
           </Form.Item>
 
           <Form.Item name="phone" label="手机号">
-            <Input placeholder="请输入手机号" style={{ borderRadius: '8px' }} />
+            <Input
+              placeholder="请输入手机号（选填）"
+              prefix={<PhoneOutlined style={{ color: '#bfbfbf' }} />}
+              style={{ borderRadius: '8px' }}
+            />
           </Form.Item>
+
+          <Divider style={{ margin: '0 0 16px 0' }} />
+
+          {/* ===== 权限与安全 ===== */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <SafetyOutlined style={{ color: '#667eea', fontSize: '16px' }} />
+            <span style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>权限与安全</span>
+          </div>
 
           <Form.Item
             name="roleIds"
             label="角色"
-            rules={[{ required: true, message: '请选择角色' }]}
+            help="可选，不选则无角色权限"
           >
-            <Select mode="multiple" placeholder="请选择角色" style={{ borderRadius: '8px' }}>
-              {roles.map(role => (
+            <Select
+              mode="multiple"
+              placeholder="请选择用户角色"
+              style={{ borderRadius: '8px' }}
+              maxTagCount={3}
+            >
+              {roles.map((role) => (
                 <Option key={role.roleId} value={role.roleId}>
                   {role.roleName}
                 </Option>
@@ -693,49 +839,96 @@ const UserManagement = () => {
                 { required: true, message: '请输入初始密码' },
                 { min: 6, message: '密码长度不能少于6个字符' },
               ]}
+              help={
+                passwordStrength.label ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Progress
+                      percent={passwordStrength.score}
+                      showInfo={false}
+                      size="small"
+                      strokeColor={passwordStrength.color}
+                      style={{ flex: 1, marginBottom: 0 }}
+                    />
+                    <span style={{ fontSize: '12px', color: passwordStrength.color, fontWeight: 500 }}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                ) : null
+              }
             >
-              <Input.Password placeholder="请输入初始密码" style={{ borderRadius: '8px' }} />
+              <Input.Password
+                placeholder="请输入初始密码"
+                prefix={<KeyOutlined style={{ color: '#bfbfbf' }} />}
+                style={{ borderRadius: '8px' }}
+              />
             </Form.Item>
           )}
 
-          <Form.Item name="status" label="状态">
-            <Select placeholder="请选择状态" style={{ borderRadius: '8px' }}>
-              <Option value="active">正常</Option>
-              <Option value="inactive">禁用</Option>
-              <Option value="locked">锁定</Option>
-            </Select>
-          </Form.Item>
+          {editingUser && (
+            <Form.Item name="status" label="状态">
+              <Select placeholder="请选择状态" style={{ borderRadius: '8px' }}>
+                <Option value="active">正常</Option>
+                <Option value="inactive">禁用</Option>
+                <Option value="locked">锁定</Option>
+              </Select>
+            </Form.Item>
+          )}
 
           {editingUser && (
             <Form.Item
               name="newPassword"
               label="新密码"
               rules={[{ min: 6, message: '密码长度不能少于6个字符' }]}
+              help="留空则不修改密码"
             >
-              <Input.Password placeholder="留空则不修改密码" style={{ borderRadius: '8px' }} />
+              <Input.Password
+                placeholder="留空则不修改密码"
+                prefix={<KeyOutlined style={{ color: '#bfbfbf' }} />}
+                style={{ borderRadius: '8px' }}
+              />
             </Form.Item>
           )}
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: '24px' }}>
-            <Space>
+          {!editingUser && (
+            <Form.Item name="status" label="状态">
+              <Select placeholder="请选择状态" style={{ borderRadius: '8px' }}>
+                <Option value="active">正常</Option>
+                <Option value="inactive">禁用</Option>
+                <Option value="locked">锁定</Option>
+              </Select>
+            </Form.Item>
+          )}
+
+          <Divider style={{ margin: '8px 0 0 0' }} />
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: '20px' }}>
+            <Space size={12}>
               <Button
-                onClick={() => setModalVisible(false)}
-                style={{ borderRadius: '8px', height: '40px' }}
+                onClick={() => {
+                  setModalVisible(false);
+                  setPasswordStrength({ score: 0, label: '', color: '' });
+                }}
+                style={{ borderRadius: '8px', height: '40px', paddingLeft: '20px', paddingRight: '20px' }}
               >
                 取消
               </Button>
               <Button
                 type="primary"
                 htmlType="submit"
-                loading={loading}
+                loading={submitting}
+                disabled={submitting}
                 style={{
-                  ...primaryButtonStyle,
-                  width: 'auto',
-                  paddingLeft: '24px',
-                  paddingRight: '24px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.35)',
+                  fontWeight: '500',
+                  paddingLeft: '28px',
+                  paddingRight: '28px',
                 }}
               >
-                {editingUser ? '更新' : '创建'}
+                {editingUser ? '保存修改' : '创建用户'}
               </Button>
             </Space>
           </Form.Item>

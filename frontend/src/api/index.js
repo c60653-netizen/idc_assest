@@ -174,7 +174,10 @@ export const roleAPI = {
   create: data => api.post('/roles', data),
   update: (roleId, data) => api.put(`/roles/${roleId}`, data),
   delete: roleId => api.delete(`/roles/${roleId}`),
-  initRoles: () => api.post('/roles/init-roles'),
+};
+
+export const permissionAPI = {
+  list: () => api.get('/permissions'),
 };
 
 export const loginHistoryAPI = {
@@ -276,6 +279,20 @@ export const systemSettingsAPI = {
   getLicenses: () => api.get('/system-settings/system/licenses'),
   // 在线更新：检查是否有新版本
   checkUpdate: () => api.get('/system-settings/system/check-update'),
+};
+
+/**
+ * 拓扑布局 API
+ * 用于持久化用户手动调整的拓扑图节点位置
+ * layoutKey 格式:switch:{deviceId} 或 rack:{rackId}
+ */
+export const topologyAPI = {
+  // 获取已保存的布局
+  getLayout: (layoutKey) => api.get(`/topology/layout/${layoutKey}`).then(r => r.data),
+  // 保存布局(upsert)
+  saveLayout: (data) => api.post('/topology/layout', data).then(r => r.data),
+  // 删除布局(重置为自动布局)
+  deleteLayout: (layoutKey) => api.delete(`/topology/layout/${layoutKey}`).then(r => r.data),
 };
 
 export default api;

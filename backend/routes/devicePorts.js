@@ -9,6 +9,7 @@ const Cable = require('../models/Cable');
 const Rack = require('../models/Rack');
 const Room = require('../models/Room');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录设备端口操作日志
@@ -38,7 +39,7 @@ DevicePort.belongsTo(Device, { foreignKey: 'deviceId', as: 'device' });
 Device.hasMany(DevicePort, { foreignKey: 'deviceId', as: 'ports' });
 DevicePort.belongsTo(NetworkCard, { foreignKey: 'nicId', as: 'networkCard' });
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('port:view'), async (req, res) => {
   try {
     const { deviceId, status, portType, portSpeed, page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -93,7 +94,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/device/:deviceId', async (req, res) => {
+router.get('/device/:deviceId', requirePermission('port:view'), async (req, res) => {
   try {
     const { deviceId } = req.params;
 
@@ -121,7 +122,7 @@ router.get('/device/:deviceId', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('port:create'), async (req, res) => {
   try {
     const { portId, deviceId, nicId, portName, portType, portSpeed, status, vlanId, description } =
       req.body;
@@ -186,7 +187,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.post('/batch', async (req, res) => {
+router.post('/batch', requirePermission('port:create'), async (req, res) => {
   try {
     const { ports, skipExisting = false, updateExisting = false } = req.body;
 
@@ -381,7 +382,7 @@ router.post('/batch', async (req, res) => {
   }
 });
 
-router.put('/:portId', async (req, res) => {
+router.put('/:portId', requirePermission('port:edit'), async (req, res) => {
   try {
     // 白名单过滤：只允许更新安全字段
     const ALLOWED_FIELDS = ['portName', 'portType', 'portSpeed', 'status', 'vlanId', 'description', 'connectedDevice', 'macAddress'];
@@ -443,7 +444,7 @@ router.put('/:portId', async (req, res) => {
 });
 
 // 批量删除端口
-router.delete('/batch', async (req, res) => {
+router.delete('/batch', requirePermission('port:delete'), async (req, res) => {
   try {
     const { portIds } = req.body;
 
@@ -482,7 +483,7 @@ router.delete('/batch', async (req, res) => {
 });
 
 // 删除单个端口
-router.delete('/:portId', async (req, res) => {
+router.delete('/:portId', requirePermission('port:delete'), async (req, res) => {
   try {
     const port = await DevicePort.findByPk(req.params.portId);
     if (!port) {
@@ -538,7 +539,7 @@ router.delete('/:portId', async (req, res) => {
   }
 });
 
-router.post('/batch-delete', async (req, res) => {
+router.post('/batch-delete', requirePermission('port:delete'), async (req, res) => {
   try {
     const { portIds } = req.body;
 
@@ -577,7 +578,7 @@ router.post('/batch-delete', async (req, res) => {
 });
 
 // 导出所有端口
-router.get('/export/all', async (req, res) => {
+router.get('/export/all', requirePermission('port:view'), async (req, res) => {
   try {
     const { keyword, status, portType, portSpeed, deviceId, page = 1, pageSize = 5000 } = req.query;
 
@@ -639,7 +640,7 @@ router.get('/export/all', async (req, res) => {
 // 获取单个端口
 // 按设备分组返回端口，支持设备维度分页
 // 解决端口数超过 pageSize 时部分设备不显示的问题
-router.get('/grouped', async (req, res) => {
+router.get('/grouped', requirePermission('port:view'), async (req, res) => {
   try {
     const { deviceId, roomId, rackId, page = 1, pageSize = 10 } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -803,7 +804,7 @@ router.get('/grouped', async (req, res) => {
   }
 });
 
-router.get('/:portId', async (req, res) => {
+router.get('/:portId', requirePermission('port:view'), async (req, res) => {
   try {
     const port = await DevicePort.findByPk(req.params.portId, {
       include: [

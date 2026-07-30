@@ -143,6 +143,21 @@ const migrations = [
     description: '为 users 表添加 emailVerified 字段，支持邮箱验证功能（v2.3.0）',
     migrate: migrateUserEmailVerified,
   },
+  {
+    name: '拓扑布局持久化表',
+    description: '创建 TopologyLayouts 表，存储用户手动调整的拓扑图节点位置（v2.3.0）',
+    migrate: migrateTopologyLayout,
+  },
+  {
+    name: '权限表字段类型修复',
+    description: '修改 permissions 表 type 字段为 STRING，支持 module/menu/button（v2.3.5）',
+    migrate: migratePermissionTypeField,
+  },
+  {
+    name: '权限种子数据初始化',
+    description: '初始化 113 条权限种子数据，构建三级权限体系（v2.3.5）',
+    migrate: migrateInitPermissions,
+  },
 ];
 
 async function runMigrations() {
@@ -954,6 +969,106 @@ async function migrateUserEmailVerified() {
   // 与现有 migrateConsumableLogDecouple 的 isConsumableDeleted 写法一致
   await addColumnIfNotExists(tableName, 'emailVerified', 'BOOLEAN DEFAULT 0');
   console.log('    users 表 emailVerified 字段迁移完成');
+}
+
+/**
+ * 创建 TopologyLayouts 表（拓扑布局持久化）
+ * 存储用户手动调整的拓扑图节点位置，下次打开时恢复
+ * layoutKey 格式:switch:{deviceId} 或 rack:{rackId}
+ */
+async function migrateTopologyLayout() {
+  const queryInterface = sequelize.getQueryInterface();
+  const tableName = 'TopologyLayouts';
+
+  // 幂等:表已存在则跳过
+  if (await tableExists(tableName)) {
+    console.log(`    ${tableName} 表已存在，跳过`);
+    return;
+  }
+
+  // Sequelize.JSON 在 MySQL 上为 JSON 类型,在 SQLite 上自动用 TEXT 存储
+  // 模型层(TopologyLayout.js)使用 DataTypes.JSON,Sequelize 会处理读写转换
+  await queryInterface.createTable(tableName, {
+    id: {
+      type: sequelize.Sequelize.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false,
+    },
+    layoutKey: {
+      type: sequelize.Sequelize.STRING,
+      allowNull: false,
+      // 显式索引名,避免 MySQL 重复 UNIQUE 索引累积(database-migration.md 规范)
+      unique: 'topology_layouts_layout_key_unique',
+      comment: '布局唯一标识,如 switch:DEVxxx 或 rack:RACKxxx',
+    },
+    nodesData: {
+      type: sequelize.Sequelize.JSON,
+      allowNull: false,
+      comment: '节点位置 JSON 数组 [{id, x, y}, ...]',
+    },
+    viewport: {
+      type: sequelize.Sequelize.JSON,
+      allowNull: true,
+      comment: '视口状态 {x, y, zoom}',
+    },
+    createdAt: {
+      type: sequelize.Sequelize.DATE,
+      allowNull: false,
+      defaultValue: sequelize.Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+    updatedAt: {
+      type: sequelize.Sequelize.DATE,
+      allowNull: false,
+      defaultValue: sequelize.Sequelize.literal('CURRENT_TIMESTAMP'),
+    },
+  });
+
+  console.log(`    ${tableName} 表创建成功`);
+}
+
+/**
+ * 修改 permissions 表 type 字段为 STRING（v2.3.5）
+ * 原为 ENUM('menu','button')，需支持顶级模块的 'module' 值
+ */
+async function migratePermissionTypeField() {
+  if (!(await tableExists('permissions'))) {
+    console.log('    permissions 表不存在，跳过');
+    return;
+  }
+
+  const dialect = sequelize.getDialect();
+
+  if (dialect === 'mysql') {
+    // 先检查当前列类型
+    const [columns] = await sequelize.query(
+      `SELECT DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'permissions' AND COLUMN_NAME = 'type' AND TABLE_SCHEMA = DATABASE()`
+    );
+    if (columns.length > 0 && columns[0].COLUMN_TYPE === "varchar(20)") {
+      console.log('    permissions.type 已经是 VARCHAR(20)，跳过');
+      return;
+    }
+    await sequelize.query("ALTER TABLE permissions MODIFY COLUMN type VARCHAR(20) DEFAULT 'button'");
+    console.log('    permissions.type 已修改为 VARCHAR(20)');
+  } else {
+    // SQLite 无列类型约束，不需要修改
+    console.log('    SQLite 无列类型约束，跳过');
+  }
+}
+
+/**
+ * 初始化权限种子数据（v2.3.5）
+ * 插入 113 条三级权限数据（module → menu → button）
+ */
+async function migrateInitPermissions() {
+  if (!(await tableExists('permissions'))) {
+    console.log('    permissions 表不存在，跳过');
+    return;
+  }
+
+  const { initPermissions } = require('./init-permissions');
+  const count = await initPermissions();
+  console.log(`    权限种子数据初始化完成，共处理 ${count} 条`);
 }
 
 // 执行迁移

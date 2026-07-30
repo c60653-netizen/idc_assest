@@ -23,7 +23,7 @@ const Permission = sequelize.define(
       allowNull: true,
     },
     type: {
-      type: DataTypes.ENUM('menu', 'button'),
+      type: DataTypes.STRING(20),
       defaultValue: 'button',
     },
     path: {

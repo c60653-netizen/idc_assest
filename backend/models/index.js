@@ -8,6 +8,7 @@ const Cable = require('./Cable');
 const Ticket = require('./Ticket');
 const InventoryRecord = require('./InventoryRecord');
 const Warehouse = require('./Warehouse');
+const TopologyLayout = require('./TopologyLayout');
 
 // 建立Rack与Device的关联关系（Device模型中已有反向关联定义）
 Rack.hasMany(Device, { foreignKey: 'rackId', as: 'Devices' });
@@ -23,4 +24,5 @@ module.exports = {
   Ticket,
   InventoryRecord,
   Warehouse,
+  TopologyLayout,
 };

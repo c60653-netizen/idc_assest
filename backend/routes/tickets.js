@@ -15,6 +15,7 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录工单操作日志
@@ -26,8 +27,7 @@ const { logOperation } = require('../utils/operationLogger');
 const logTicketOperation = (operationType, operationDescription, params) =>
   logOperation({ module: 'ticket', operationType, operationDescription, ...params });
 
-// 获取工单统计 (必须定义在 /:ticketId 之前)
-router.get('/stats', async (req, res) => {
+router.get('/stats', requirePermission('ticket:view'), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
@@ -389,14 +389,12 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// 获取工单统计 (别名)
-router.get('/statistics', async (req, res) => {
+router.get('/statistics', requirePermission('ticket:view'), async (req, res) => {
   req.url = '/stats';
   router.handle(req, res);
 });
 
-// 获取工单列表
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('ticket:view'), async (req, res) => {
   try {
     const {
       keyword,
@@ -509,7 +507,7 @@ const TICKET_EXPORT_FIELDS = [
   { fieldName: 'updatedAt', displayName: '更新时间' },
 ];
 
-router.get('/export', async (req, res) => {
+router.get('/export', requirePermission('ticket:view'), async (req, res) => {
   try {
     const {
       keyword,
@@ -668,8 +666,7 @@ router.get('/export', async (req, res) => {
   }
 });
 
-// 获取单个工单详情
-router.get('/:ticketId', async (req, res) => {
+router.get('/:ticketId', requirePermission('ticket:view'), async (req, res) => {
   try {
     const ticket = await Ticket.findByPk(req.params.ticketId, {
       include: [
@@ -710,8 +707,7 @@ router.get('/:ticketId', async (req, res) => {
   }
 });
 
-// 创建工单
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('ticket:create'), async (req, res) => {
   try {
     const {
       deviceId,
@@ -817,8 +813,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 更新工单
-router.put('/:ticketId', async (req, res) => {
+router.put('/:ticketId', requirePermission('ticket:edit', 'ticket:assign', 'ticket:close'), async (req, res) => {
   try {
     const ticket = await Ticket.findByPk(req.params.ticketId);
     if (!ticket) {
@@ -891,8 +886,7 @@ router.put('/:ticketId', async (req, res) => {
   }
 });
 
-// 更新工单状态
-router.put('/:ticketId/status', async (req, res) => {
+router.put('/:ticketId/status', requirePermission('ticket:edit', 'ticket:assign', 'ticket:close'), async (req, res) => {
   try {
     const { status, operatorId, operatorName, operatorRole, resolution } = req.body;
 
@@ -968,8 +962,7 @@ router.put('/:ticketId/status', async (req, res) => {
   }
 });
 
-// 处理工单
-router.put('/:ticketId/process', async (req, res) => {
+router.put('/:ticketId/process', requirePermission('ticket:edit', 'ticket:assign', 'ticket:close'), async (req, res) => {
   try {
     const { solution, result, notes, usedParts, operatorId, operatorName, operatorRole } = req.body;
 
@@ -1036,8 +1029,7 @@ router.put('/:ticketId/process', async (req, res) => {
   }
 });
 
-// 添加操作记录
-router.post('/:ticketId/operations', async (req, res) => {
+router.post('/:ticketId/operations', requirePermission('ticket:edit', 'ticket:assign', 'ticket:close'), async (req, res) => {
   try {
     const {
       operationType,
@@ -1100,8 +1092,7 @@ router.post('/:ticketId/operations', async (req, res) => {
   }
 });
 
-// 获取工单操作记录
-router.get('/:ticketId/operations', async (req, res) => {
+router.get('/:ticketId/operations', requirePermission('ticket:view'), async (req, res) => {
   try {
     const records = await TicketOperationRecord.findAll({
       where: { ticketId: req.params.ticketId },
@@ -1114,8 +1105,7 @@ router.get('/:ticketId/operations', async (req, res) => {
   }
 });
 
-// 删除工单
-router.delete('/:ticketId', async (req, res) => {
+router.delete('/:ticketId', requirePermission('ticket:delete'), async (req, res) => {
   try {
     const ticket = await Ticket.findByPk(req.params.ticketId);
     if (!ticket) {
@@ -1152,8 +1142,7 @@ router.delete('/:ticketId', async (req, res) => {
   }
 });
 
-// 评价工单
-router.post('/:ticketId/evaluate', async (req, res) => {
+router.post('/:ticketId/evaluate', requirePermission('ticket:edit', 'ticket:assign', 'ticket:close'), async (req, res) => {
   try {
     const { evaluation, evaluationRating, operatorId, operatorName } = req.body;
 

@@ -52,6 +52,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+/**
+ * 获取所有有网卡的设备摘要（含网卡数、端口数统计）
+ * 一次 SQL 聚合查询，避免前端多次请求和遍历
+ */
+router.get('/devices-summary', async (req, res) => {
+  try {
+    const results = await NetworkCard.sequelize.query(
+      `SELECT
+        d.deviceId, d.name, d.type, d.status, d.rackId, r.roomId,
+        COUNT(DISTINCT n.nicId) as nicCount,
+        COUNT(DISTINCT p.portId) as portCount
+      FROM devices d
+      INNER JOIN network_cards n ON n.deviceId = d.deviceId
+      LEFT JOIN device_ports p ON p.deviceId = d.deviceId
+      LEFT JOIN racks r ON r.rackId = d.rackId
+      GROUP BY d.deviceId, d.name, d.type, d.status, d.rackId, r.roomId
+      ORDER BY d.name ASC`,
+      { type: NetworkCard.sequelize.QueryTypes.SELECT }
+    );
+
+    res.json(results);
+  } catch (error) {
+    logger.error('获取设备网卡摘要失败', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/device/:deviceId', async (req, res) => {
   try {
     const { deviceId } = req.params;

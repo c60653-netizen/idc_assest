@@ -50,7 +50,10 @@ function ServerNicCard({ server, onManage }) {
   const statusConfig = STATUS_CONFIG[server.status] || STATUS_CONFIG.offline;
 
   const nicCount = server.nicCount || server.nics?.length || 0;
-  const totalPortCount = server.nics?.reduce((sum, nic) => sum + (nic.portCount || 0), 0) || 0;
+  const totalPortCount =
+    server.portCount ||
+    server.nics?.reduce((sum, nic) => sum + (nic.portCount || 0), 0) ||
+    0;
 
   return (
     <Card

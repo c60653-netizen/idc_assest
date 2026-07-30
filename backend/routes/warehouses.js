@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 const Warehouse = require('../models/Warehouse');
 const Device = require('../models/Device');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录库房操作日志
@@ -38,7 +39,7 @@ async function generateWarehouseId() {
   return `WH${String(newNumber).padStart(3, '0')}`;
 }
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('warehouse:view'), async (req, res) => {
   try {
     const { keyword, status, page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -88,7 +89,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:warehouseId', async (req, res) => {
+router.get('/:warehouseId', requirePermission('warehouse:view'), async (req, res) => {
   try {
     const warehouse = await Warehouse.findByPk(req.params.warehouseId);
     if (!warehouse) {
@@ -108,7 +109,7 @@ router.get('/:warehouseId', async (req, res) => {
   }
 });
 
-router.get('/:warehouseId/devices', async (req, res) => {
+router.get('/:warehouseId/devices', requirePermission('warehouse:view'), async (req, res) => {
   try {
     const { page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -137,7 +138,7 @@ router.get('/:warehouseId/devices', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('warehouse:create'), async (req, res) => {
   try {
     const { name, location, capacity, description } = req.body;
 
@@ -170,7 +171,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:warehouseId', async (req, res) => {
+router.put('/:warehouseId', requirePermission('warehouse:edit'), async (req, res) => {
   try {
     const warehouse = await Warehouse.findByPk(req.params.warehouseId);
     if (!warehouse) {
@@ -213,7 +214,7 @@ router.put('/:warehouseId', async (req, res) => {
   }
 });
 
-router.delete('/:warehouseId', async (req, res) => {
+router.delete('/:warehouseId', requirePermission('warehouse:delete'), async (req, res) => {
   try {
     const warehouse = await Warehouse.findByPk(req.params.warehouseId);
     if (!warehouse) {

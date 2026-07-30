@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>拓扑图美化样例 - 玻璃拟态现代风</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+
+  /* 深色渐变背景 */
+  body {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 58, 95, 0.6) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 80% 10%, rgba(58, 30, 95, 0.6) 0%, transparent 60%),
+      radial-gradient(ellipse at center, #0f1419 0%, #0a0e1a 100%);
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* SVG 连线层 */
+  .edges-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .edge-path {
+    fill: none;
+    stroke-width: 2;
+    transition: stroke-width 0.2s;
+  }
+
+  .edge-path.flowing {
+    stroke-dasharray: 6 4;
+    animation: flowLine 0.8s linear infinite;
+  }
+
+  @keyframes flowLine {
+    to { stroke-dashoffset: -10; }
+  }
+
+  /* 节点层 */
+  .nodes-layer {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* 玻璃拟态节点外壳 */
+  .topo-node {
+    position: absolute;
+    width: 200px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+  }
+
+  .topo-node:hover {
+    transform: translate(-50%, -50%) translateY(-3px) scale(1.03);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    z-index: 5;
+  }
+
+  /* 中心节点特殊样式 */
+  .topo-node.center {
+    width: 220px;
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow:
+      0 0 0 4px rgba(255, 215, 0, 0.12),
+      0 12px 48px rgba(255, 215, 0, 0.25),
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  .topo-node.center::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    border-radius: 24px;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.2), transparent 70%);
+    pointer-events: none;
+    animation: centerPulse 3s ease-in-out infinite;
+    z-index: -1;
+  }
+
+  @keyframes centerPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  .node-gradient-bar {
+    height: 3px;
+    width: 100%;
+  }
+
+  .node-content {
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .node-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  .node-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .node-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .node-meta {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-dot.online {
+    background: #52c41a;
+    box-shadow: 0 0 8px #52c41a, 0 0 0 2px rgba(82, 196, 26, 0.2);
+  }
+  .status-dot.offline { background: #5a5a5a; }
+  .status-dot.fault {
+    background: #ff4d4f;
+    box-shadow: 0 0 8px #ff4d4f, 0 0 0 2px rgba(255, 77, 79, 0.2);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .status-dot.warning {
+    background: #faad14;
+    box-shadow: 0 0 8px #faad14;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .node-ports {
+    padding: 0 14px 10px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .port-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .port-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .port-text {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-left: 6px;
+  }
+
+  .center-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #ffd700, #ffaa00);
+    color: #1a1a1a;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(255, 170, 0, 0.5);
+    z-index: 2;
+  }
+
+  /* 设备类型渐变色 */
+  .grad-switch   { background: linear-gradient(90deg, #1890ff, #722ed1); }
+  .grad-router   { background: linear-gradient(90deg, #722ed1, #eb2f96); }
+  .grad-server   { background: linear-gradient(90deg, #52c41a, #13c2c2); }
+  .grad-storage  { background: linear-gradient(90deg, #fa8c16, #fa541c); }
+  .grad-firewall { background: linear-gradient(90deg, #eb595a, #ff4d4f); }
+
+  /* 图标背景色 */
+  .icon-switch   { background: linear-gradient(135deg, rgba(24,144,255,0.3), rgba(114,46,209,0.3)); color: #69c0ff; }
+  .icon-router   { background: linear-gradient(135deg, rgba(114,46,209,0.3), rgba(235,47,150,0.3)); color: #d3adf7; }
+  .icon-server   { background: linear-gradient(135deg, rgba(82,196,26,0.3), rgba(19,194,194,0.3)); color: #95de64; }
+  .icon-storage  { background: linear-gradient(135deg, rgba(250,140,22,0.3), rgba(250,84,28,0.3)); color: #ffc069; }
+  .icon-firewall { background: linear-gradient(135deg, rgba(235,89,90,0.3), rgba(255,77,79,0.3)); color: #ff9c9e; }
+
+  /* 工具栏 */
+  .topo-toolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    color: #fff;
+    min-width: 240px;
+  }
+  .topo-toolbar h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #fff;
+  }
+  .topo-toolbar p {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 12px;
+  }
+
+  .layout-switcher {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 3px;
+    border-radius: 8px;
+  }
+  .layout-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 6px 10px;
+    font-size: 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .layout-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .layout-btn.active {
+    background: rgba(99, 179, 237, 0.25);
+    color: #69c0ff;
+    box-shadow: inset 0 0 0 1px rgba(99, 179, 237, 0.4);
+  }
+
+  /* 图例 */
+  .topo-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 11px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+  .legend-group { display: flex; flex-direction: column; gap: 6px; }
+  .legend-group + .legend-group {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .legend-title {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .legend-items { display: flex; flex-wrap: wrap; gap: 10px; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.75);
+  }
+  .legend-swatch {
+    width: 16px;
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  /* 统计卡片 */
+  .topo-stats {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+  }
+  .stat-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: #fff;
+    min-width: 80px;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .stat-value.success { color: #52c41a; }
+  .stat-value.danger { color: #ff4d4f; }
+
+  /* 装饰光晕 */
+  .ambient-glow {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+  }
+  .glow-1 {
+    top: 20%;
+    left: 30%;
+    width: 300px;
+    height: 300px;
+    background: #1890ff;
+  }
+  .glow-2 {
+    bottom: 20%;
+    right: 25%;
+    width: 280px;
+    height: 280px;
+    background: #722ed1;
+  }
+
+  /* 点阵背景 */
+  .dot-bg {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- 装饰光晕 -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- 点阵背景 -->
+  <div class="dot-bg"></div>
+
+  <!-- SVG 连线层 -->
+  <svg class="edges-svg" id="edges"></svg>
+
+  <!-- 节点层 -->
+  <div class="nodes-layer" id="nodes"></div>
+
+  <!-- 工具栏 -->
+  <div class="topo-toolbar">
+    <h2>网络拓扑可视化</h2>
+    <p>Core-Switch-01 星型连接 · 10 节点 · 10 链路</p>
+    <div class="layout-switcher">
+      <button class="layout-btn active" data-layout="radial">径向</button>
+      <button class="layout-btn" data-layout="tb">层次</button>
+      <button class="layout-btn" data-layout="lr">横向</button>
+      <button class="layout-btn" data-layout="circle">圆形</button>
+    </div>
+  </div>
+
+  <!-- 统计卡片 -->
+  <div class="topo-stats">
+    <div class="stat-card">
+      <div class="stat-label">设备</div>
+      <div class="stat-value">10</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">在线</div>
+      <div class="stat-value success">8</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">故障</div>
+      <div class="stat-value danger">1</div>
+    </div>
+  </div>
+
+  <!-- 图例 -->
+  <div class="topo-legend">
+    <div class="legend-group">
+      <div class="legend-title">设备类型</div>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-swatch grad-switch"></div><span>交换机</span></div>
+        <div class="legend-item"><div class="legend-swatch grad-router"></div><span>路由器</span></div>
+        <div class="legend-item"><div class="legend-swatch grad-server"></div><span>服务器</span></div>
+        <div class="legend-item"><div class="legend-swatch grad-storage"></div><span>存储</span></div>
+        <div class="legend-item"><div class="legend-swatch grad-firewall"></div><span>防火墙</span></div>
+      </div>
+    </div>
+    <div class="legend-group">
+      <div class="legend-title">线缆类型</div>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-swatch" style="background:#69c0ff"></div><span>网线</span></div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#36cfc9"></div><span>光纤</span></div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#ffa940"></div><span>铜缆</span></div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#ff4d4f"></div><span>故障</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 设备配置
+const DEVICE_CONFIG = {
+  switch:   { grad: 'grad-switch',   icon: 'icon-switch',   iconChar: '⊞', label: '交换机' },
+  router:   { grad: 'grad-router',   icon: 'icon-router',   iconChar: '⇄', label: '路由器' },
+  server:   { grad: 'grad-server',   icon: 'icon-server',   iconChar: '▤', label: '服务器' },
+  storage:  { grad: 'grad-storage',  icon: 'icon-storage',  iconChar: '◫', label: '存储' },
+  firewall: { grad: 'grad-firewall', icon: 'icon-firewall', iconChar: '🛡', label: '防火墙' },
+};
+
+const CABLE_COLORS = {
+  ethernet: '#69c0ff',
+  fiber: '#36cfc9',
+  copper: '#ffa940',
+  fault: '#ff4d4f',
+};
+
+// 节点数据
+const NODES = [
+  { id: 'sw1',  label: 'Core-Switch-01',   type: 'switch',   ip: '10.0.0.1',    status: 'online',   isCenter: true, portUsed: 38, portTotal: 48 },
+  { id: 'rt1',  label: 'Edge-Router-01',   type: 'router',   ip: '10.0.0.254',  status: 'online',   portUsed: 6,  portTotal: 16 },
+  { id: 'fw1',  label: 'Firewall-01',      type: 'firewall', ip: '10.0.0.100',  status: 'online',   portUsed: 4,  portTotal: 8 },
+  { id: 'sw2',  label: 'Access-Switch-02', type: 'switch',   ip: '10.0.0.2',    status: 'online',   portUsed: 22, portTotal: 24 },
+  { id: 'sw3',  label: 'Access-Switch-03', type: 'switch',   ip: '10.0.0.3',    status: 'warning',  portUsed: 23, portTotal: 24 },
+  { id: 'srv1', label: 'Web-Server-01',    type: 'server',   ip: '10.0.1.10',   status: 'online',   portUsed: 2,  portTotal: 4 },
+  { id: 'srv2', label: 'App-Server-02',    type: 'server',   ip: '10.0.1.11',   status: 'online',   portUsed: 2,  portTotal: 4 },
+  { id: 'srv3', label: 'DB-Server-03',     type: 'server',   ip: '10.0.1.12',   status: 'fault',    portUsed: 4,  portTotal: 4 },
+  { id: 'st1',  label: 'Storage-Array-01', type: 'storage',  ip: '10.0.2.10',   status: 'online',   portUsed: 8,  portTotal: 16 },
+  { id: 'srv4', label: 'Cache-Server-04',  type: 'server',   ip: '10.0.1.13',   status: 'offline',  portUsed: 0,  portTotal: 4 },
+];
+
+// 连线数据
+const EDGES = [
+  { id: 'e1',  source: 'rt1',  target: 'fw1',  cableType: 'fiber',    status: 'normal' },
+  { id: 'e2',  source: 'fw1',  target: 'sw1',  cableType: 'fiber',    status: 'normal' },
+  { id: 'e3',  source: 'sw1',  target: 'sw2',  cableType: 'fiber',    status: 'normal' },
+  { id: 'e4',  source: 'sw1',  target: 'sw3',  cableType: 'fiber',    status: 'normal' },
+  { id: 'e5',  source: 'sw1',  target: 'srv1', cableType: 'ethernet', status: 'normal' },
+  { id: 'e6',  source: 'sw1',  target: 'srv2', cableType: 'ethernet', status: 'normal' },
+  { id: 'e7',  source: 'sw1',  target: 'srv3', cableType: 'ethernet', status: 'fault' },
+  { id: 'e8',  source: 'sw1',  target: 'st1',  cableType: 'copper',   status: 'normal' },
+  { id: 'e9',  source: 'sw2',  target: 'srv4', cableType: 'ethernet', status: 'disconnected' },
+  { id: 'e10', source: 'sw3',  target: 'st1',  cableType: 'ethernet', status: 'normal' },
+];
+
+// 布局算法
+function layoutRadial(nodes) {
+  const center = nodes.find((n) => n.isCenter) || nodes[0];
+  const others = nodes.filter((n) => n.id !== center.id);
+  const result = [{ ...center, x: 0, y: 0 }];
+  const radius = 340;
+  others.forEach((n, i) => {
+    const angle = (i / others.length) * 2 * Math.PI - Math.PI / 2;
+    result.push({ ...n, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+  });
+  return result;
+}
+
+function layoutCircle(nodes) {
+  const radius = 380;
+  return nodes.map((n, i) => {
+    const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
+    return { ...n, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+  });
+}
+
+function layoutTB(nodes, edges) {
+  // 简化层次布局:中心节点顶层,其余按连接关系分层
+  const center = nodes.find((n) => n.isCenter) || nodes[0];
+  const levels = { [center.id]: 0 };
+  // 简单 BFS 分层
+  let frontier = [center.id];
+  let level = 1;
+  while (frontier.length && level < 5) {
+    const next = [];
+    edges.forEach((e) => {
+      if (frontier.includes(e.source) && !(e.target in levels)) {
+        levels[e.target] = level;
+        next.push(e.target);
+      }
+      if (frontier.includes(e.target) && !(e.source in levels)) {
+        levels[e.source] = level;
+        next.push(e.source);
+      }
+    });
+    frontier = next;
+    level++;
+  }
+  // 按层组织
+  const byLevel = {};
+  nodes.forEach((n) => {
+    const lv = levels[n.id] !== undefined ? levels[n.id] : level;
+    if (!byLevel[lv]) byLevel[lv] = [];
+    byLevel[lv].push(n);
+  });
+  const result = [];
+  const xGap = 240;
+  const yGap = 160;
+  Object.keys(byLevel).sort((a, b) => a - b).forEach((lv) => {
+    const group = byLevel[lv];
+    const totalWidth = (group.length - 1) * xGap;
+    group.forEach((n, i) => {
+      result.push({
+        ...n,
+        x: i * xGap - totalWidth / 2,
+        y: parseInt(lv) * yGap,
+      });
+    });
+  });
+  return result;
+}
+
+function layoutLR(nodes, edges) {
+  const laid = layoutTB(nodes, edges);
+  // 交换 x/y
+  return laid.map((n) => ({ ...n, x: n.y, y: n.x }));
+}
+
+// 渲染节点
+function renderNode(node) {
+  const cfg = DEVICE_CONFIG[node.type] || DEVICE_CONFIG.switch;
+  const portPercent = (node.portUsed / node.portTotal) * 100;
+  const portFillBg = portPercent > 80
+    ? 'linear-gradient(90deg, #ff4d4f, #ff7875)'
+    : portPercent > 60
+      ? 'linear-gradient(90deg, #faad14, #ffd666)'
+      : 'linear-gradient(90deg, #52c41a, #95de64)';
+
+  const div = document.createElement('div');
+  div.className = 'topo-node' + (node.isCenter ? ' center' : '');
+  div.dataset.id = node.id;
+  div.style.left = node.x + 'px';
+  div.style.top = node.y + 'px';
+  div.innerHTML = `
+    ${node.isCenter ? '<div class="center-badge">中心</div>' : ''}
+    <div class="node-gradient-bar ${cfg.grad}"></div>
+    <div class="node-content">
+      <div class="node-icon ${cfg.icon}"><span>${cfg.iconChar}</span></div>
+      <div class="node-info">
+        <div class="node-name">${node.label}</div>
+        <div class="node-meta">
+          <span class="status-dot ${node.status}"></span>
+          <span>${cfg.label}</span>
+          <span style="opacity:0.5">·</span>
+          <span>${node.ip}</span>
+        </div>
+      </div>
+    </div>
+    <div class="node-ports">
+      <div class="port-bar">
+        <div class="port-bar-fill" style="width:${portPercent}%;background:${portFillBg}"></div>
+      </div>
+      <span class="port-text">${node.portUsed}/${node.portTotal}</span>
+    </div>
+  `;
+  return div;
+}
+
+// 渲染连线 - 贝塞尔曲线
+function renderEdge(edge, nodes) {
+  const source = nodes.find((n) => n.id === edge.source);
+  const target = nodes.find((n) => n.id === edge.target);
+  if (!source || !target) return null;
+
+  // 贝塞尔曲线控制点
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const cx1 = source.x + dx * 0.5;
+  const cy1 = source.y;
+  const cx2 = source.x + dx * 0.5;
+  const cy2 = target.y;
+
+  const path = `M ${source.x} ${source.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${target.x} ${target.y}`;
+
+  let strokeColor;
+  let strokeWidth = 2;
+  let flowing = true;
+
+  if (edge.status === 'fault') {
+    strokeColor = CABLE_COLORS.fault;
+    strokeWidth = 3;
+  } else if (edge.status === 'disconnected') {
+    strokeColor = '#5a5a5a';
+    strokeWidth = 1.5;
+    flowing = false;
+  } else {
+    strokeColor = CABLE_COLORS[edge.cableType] || '#8c8c8c';
+  }
+
+  const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  pathEl.setAttribute('d', path);
+  pathEl.setAttribute('class', 'edge-path' + (flowing ? ' flowing' : ''));
+  pathEl.setAttribute('stroke', strokeColor);
+  pathEl.setAttribute('stroke-width', strokeWidth);
+  if (edge.status === 'disconnected') {
+    pathEl.setAttribute('stroke-dasharray', '5 5');
+  }
+  return pathEl;
+}
+
+// 主渲染函数
+function render(layoutType) {
+  const nodesLayer = document.getElementById('nodes');
+  const edgesSvg = document.getElementById('edges');
+  nodesLayer.innerHTML = '';
+  edgesSvg.innerHTML = '';
+
+  let positioned;
+  if (layoutType === 'radial') positioned = layoutRadial(NODES);
+  else if (layoutType === 'circle') positioned = layoutCircle(NODES);
+  else if (layoutType === 'tb') positioned = layoutTB(NODES, EDGES);
+  else if (layoutType === 'lr') positioned = layoutLR(NODES, EDGES);
+  else positioned = layoutRadial(NODES);
+
+  // 渲染连线(先画线)
+  EDGES.forEach((edge) => {
+    const pathEl = renderEdge(edge, positioned);
+    if (pathEl) edgesSvg.appendChild(pathEl);
+  });
+
+  // 渲染节点
+  positioned.forEach((node) => {
+    nodesLayer.appendChild(renderNode(node));
+  });
+}
+
+// 居中显示 - 计算偏移
+function centerStage() {
+  const stage = document.querySelector('.stage');
+  const nodesLayer = document.getElementById('nodes');
+  const edgesSvg = document.getElementById('edges');
+
+  // 把坐标系原点移到画布中心
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  nodesLayer.style.transform = `translate(${cx}px, ${cy}px)`;
+  edgesSvg.style.transform = `translate(${cx}px, ${cy}px)`;
+}
+
+// 初始化
+function init() {
+  centerStage();
+  render('radial');
+
+  // 布局切换
+  document.querySelectorAll('.layout-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.layout-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      render(btn.dataset.layout);
+    });
+  });
+}
+
+window.addEventListener('resize', () => {
+  centerStage();
+});
+
+init();
+</script>
+</body>
+</html>

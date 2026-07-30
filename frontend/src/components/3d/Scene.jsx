@@ -203,7 +203,10 @@ const Scene = forwardRef(
       >
         <Canvas
           dpr={deviceDpr}
-          performance={{ min: 0.5 }}
+          // 禁用 R3F 自适应性能降级
+          // 原因：放大时 LOD 切换 + DeviceModel 挂载导致瞬时帧率下跌，
+          // R3F 会把 dpr 从 2 降到 0.5，Canvas 渲染分辨率骤降到 1/4，
+          // 画面出现"大黑块"闪烁，几帧后 dpr 恢复才变正常
           gl={{
             antialias: true, // 对所有设备开启抗锯齿提升清晰度
             alpha: true, // 必须开启 alpha 以支持透明背景

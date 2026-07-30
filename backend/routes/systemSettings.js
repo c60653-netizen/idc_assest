@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
 const { authMiddleware, clearMaintenanceCache, requireAdmin } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 
 // 读取 package.json 获取版本号
 const packageJsonPath = path.join(__dirname, '../package.json');
@@ -226,7 +227,7 @@ const initDefaultSettings = async () => {
 // initDefaultSettings();
 
 // 获取所有设置
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('settings:view'), async (req, res) => {
   try {
     const { category } = req.query;
     const where = {};
@@ -503,7 +504,7 @@ router.post('/mail/test', requireAdmin, async (req, res) => {
 });
 
 // 获取单个设置
-router.get('/:key', async (req, res) => {
+router.get('/:key', requirePermission('settings:view'), async (req, res) => {
   try {
     const { key } = req.params;
     const setting = await SystemSetting.findByPk(key);
@@ -527,7 +528,7 @@ router.get('/:key', async (req, res) => {
 });
 
 // 更新设置
-router.put('/:key', async (req, res) => {
+router.put('/:key', requirePermission('settings:edit'), async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
@@ -608,7 +609,7 @@ router.put('/:key', async (req, res) => {
 });
 
 // 批量更新设置
-router.put('/', async (req, res) => {
+router.put('/', requirePermission('settings:edit'), async (req, res) => {
   try {
     const { settings } = req.body;
 
@@ -691,7 +692,7 @@ router.put('/', async (req, res) => {
 });
 
 // 重置设置为默认值
-router.post('/reset/:key', async (req, res) => {
+router.post('/reset/:key', requirePermission('settings:edit'), async (req, res) => {
   try {
     const { key } = req.params;
     const setting = await SystemSetting.findByPk(key);
@@ -758,7 +759,7 @@ router.post('/reset/:key', async (req, res) => {
 });
 
 // 手动执行备份
-router.post('/backup', async (req, res) => {
+router.post('/backup', requirePermission('settings:edit'), async (req, res) => {
   try {
     // 获取系统设置中的备份路径
     const backupPathSetting = await SystemSetting.findByPk('backup_path');
@@ -871,7 +872,7 @@ const getBackupDir = async () => {
 };
 
 // 获取备份列表
-router.get('/backup/list', async (req, res) => {
+router.get('/backup/list', requirePermission('settings:view'), async (req, res) => {
   try {
     const backupDir = await getBackupDir();
 
@@ -902,7 +903,7 @@ router.get('/backup/list', async (req, res) => {
 });
 
 // 恢复备份
-router.post('/backup/restore', async (req, res) => {
+router.post('/backup/restore', requirePermission('settings:edit'), async (req, res) => {
   try {
     const { filename } = req.body;
 
@@ -978,7 +979,7 @@ router.post('/backup/restore', async (req, res) => {
 });
 
 // 删除备份
-router.delete('/backup/:filename', async (req, res) => {
+router.delete('/backup/:filename', requirePermission('settings:edit'), async (req, res) => {
   try {
     const { filename } = req.params;
     const backupDir = await getBackupDir();
@@ -1011,7 +1012,7 @@ router.delete('/backup/:filename', async (req, res) => {
 });
 
 // 下载备份文件
-router.get('/backup/download/:filename', async (req, res) => {
+router.get('/backup/download/:filename', requirePermission('settings:view'), async (req, res) => {
   try {
     const { filename } = req.params;
     const backupDir = await getBackupDir();
@@ -1345,7 +1346,7 @@ router.get('/frontend/port', async (req, res) => {
 });
 
 // 同步前端端口到配置文件（供前端保存设置后调用）
-router.post('/frontend/port/sync', async (req, res) => {
+router.post('/frontend/port/sync', requirePermission('settings:edit'), async (req, res) => {
   try {
     const fs = require('fs');
     const path = require('path');
@@ -1386,7 +1387,7 @@ router.post('/frontend/port/sync', async (req, res) => {
 });
 
 // 重启前端服务
-router.post('/frontend/restart', async (req, res) => {
+router.post('/frontend/restart', requirePermission('settings:edit'), async (req, res) => {
   try {
     const { restartFrontend, getStatus } = require('../../scripts/frontend-manager');
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -160,7 +160,8 @@ const InstancedStatusLights = ({ count, positions, colors: statusColors, zOffset
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  useEffect(() => {
+  // useLayoutEffect：在绘制前同步设置实例矩阵，避免首帧渲染单位矩阵导致的大黑块
+  useLayoutEffect(() => {
     if (meshRef.current) {
       for (let i = 0; i < count; i++) {
         dummy.position.set(positions[i].x, positions[i].y, positions[i].z + zOffset);
@@ -172,7 +173,7 @@ const InstancedStatusLights = ({ count, positions, colors: statusColors, zOffset
   }, [count, positions, zOffset, dummy]);
 
   // 修复：正确更新实例颜色
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (meshRef.current) {
       for (let i = 0; i < count; i++) {
         const color = new THREE.Color(statusColors[i] || '#22c55e');
@@ -219,7 +220,8 @@ const InstancedDriveBays = ({
   const detailRef = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  useEffect(() => {
+  // useLayoutEffect：在绘制前同步设置实例矩阵，避免首帧渲染单位矩阵导致的大黑块
+  useLayoutEffect(() => {
     if (meshRef.current) {
       for (let i = 0; i < count; i++) {
         dummy.position.set(positions[i].x, positions[i].y, positions[i].z);
@@ -282,7 +284,8 @@ const InstancedStorageBays = ({
   const detailRef = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  useEffect(() => {
+  // useLayoutEffect：在绘制前同步设置实例矩阵，避免首帧渲染单位矩阵导致的大黑块
+  useLayoutEffect(() => {
     if (meshRef.current) {
       for (let i = 0; i < count; i++) {
         dummy.position.set(positions[i].x, positions[i].y, positions[i].z);
@@ -334,7 +337,8 @@ const InstancedRJ45Ports = ({ count, positions, statuses, frontZ }) => {
   const ledRef = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  useEffect(() => {
+  // useLayoutEffect：在绘制前同步设置实例矩阵，避免首帧渲染单位矩阵导致的大黑块
+  useLayoutEffect(() => {
     if (meshRef.current) {
       for (let i = 0; i < count; i++) {
         dummy.position.set(positions[i].x, positions[i].y + 0.012, frontZ + 0.006);
@@ -433,7 +437,8 @@ const InstancedSFPports = ({ count, positions, statuses, frontZ }) => {
   const ledRef = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  useEffect(() => {
+  // useLayoutEffect：在绘制前同步设置实例矩阵，避免首帧渲染单位矩阵导致的大黑块
+  useLayoutEffect(() => {
     if (meshRef.current) {
       for (let i = 0; i < count; i++) {
         dummy.position.set(positions[i].x, positions[i].y, frontZ + 0.006);
@@ -474,8 +479,8 @@ const InstancedSFPports = ({ count, positions, statuses, frontZ }) => {
     }
   }, [count, positions, statuses, frontZ, dummy]);
 
-  // 修复：正确更新SFP指示灯颜色
-  useEffect(() => {
+  // 修复：正确更新SFP指示灯颜色（useLayoutEffect 确保首帧颜色正确）
+  useLayoutEffect(() => {
     if (ledRef.current) {
       for (let i = 0; i < count; i++) {
         const isConnected = statuses[i] !== 'disconnected';

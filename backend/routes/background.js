@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 
 // 所有背景设置路由需要认证
 router.use(authMiddleware);
@@ -29,7 +30,7 @@ if (!fs.existsSync(SETTINGS_FILE)) {
   );
 }
 
-router.get('/', (req, res) => {
+router.get('/', requirePermission('settings:view'), (req, res) => {
   try {
     const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
     res.json({
@@ -42,7 +43,7 @@ router.get('/', (req, res) => {
   }
 });
 
-router.put('/', (req, res) => {
+router.put('/', requirePermission('settings:edit'), (req, res) => {
   try {
     const settings = req.body;
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
@@ -56,7 +57,7 @@ router.put('/', (req, res) => {
   }
 });
 
-router.post('/upload', (req, res) => {
+router.post('/upload', requirePermission('settings:edit'), (req, res) => {
   try {
     if (!req.files || !req.files.file) {
       return res.status(400).json({ error: '没有上传文件' });
@@ -102,7 +103,7 @@ router.post('/upload', (req, res) => {
   }
 });
 
-router.get('/settings', (req, res) => {
+router.get('/settings', requirePermission('settings:view'), (req, res) => {
   try {
     const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
     res.json(settings);
@@ -112,7 +113,7 @@ router.get('/settings', (req, res) => {
   }
 });
 
-router.post('/settings', (req, res) => {
+router.post('/settings', requirePermission('settings:edit'), (req, res) => {
   try {
     const settings = req.body;
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));

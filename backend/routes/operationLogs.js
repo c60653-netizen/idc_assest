@@ -4,10 +4,11 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../db');
 const OperationLog = require('../models/OperationLog');
 const { authMiddleware } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 
 const router = express.Router();
 
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requirePermission('log:view'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -92,7 +93,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/modules', authMiddleware, async (req, res) => {
+router.get('/modules', authMiddleware, requirePermission('log:view'), async (req, res) => {
   try {
     const modules = await OperationLog.findAll({
       attributes: ['module'],
@@ -117,7 +118,7 @@ router.get('/modules', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/types', authMiddleware, async (req, res) => {
+router.get('/types', authMiddleware, requirePermission('log:view'), async (req, res) => {
   try {
     const { module } = req.query;
 
@@ -150,7 +151,7 @@ router.get('/types', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/statistics', authMiddleware, async (req, res) => {
+router.get('/statistics', authMiddleware, requirePermission('log:view'), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
@@ -217,7 +218,7 @@ router.get('/statistics', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/:recordId', authMiddleware, async (req, res) => {
+router.get('/:recordId', authMiddleware, requirePermission('log:view'), async (req, res) => {
   try {
     const log = await OperationLog.findByPk(req.params.recordId);
 

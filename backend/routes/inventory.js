@@ -15,6 +15,7 @@ const { authMiddleware, authorize } = require('../middleware/auth');
 const { PAGINATION } = require('../config');
 const { generateId } = require('../utils/idGenerator');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录库存操作日志
@@ -50,7 +51,7 @@ function generateRecordId() {
 
 router.use(authMiddleware);
 
-router.get('/plans', async (req, res) => {
+router.get('/plans', requirePermission('inventory:*'), async (req, res) => {
   try {
     const { status, page = 1, pageSize = PAGINATION.DEFAULT_PAGE_SIZE, keyword } = req.query;
     const offset = (page - 1) * pageSize;
@@ -92,7 +93,7 @@ router.get('/plans', async (req, res) => {
   }
 });
 
-router.get('/plans/:planId', async (req, res) => {
+router.get('/plans/:planId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const plan = await InventoryPlan.findByPk(req.params.planId, {
       include: [
@@ -126,7 +127,7 @@ router.get('/plans/:planId', async (req, res) => {
   }
 });
 
-router.post('/plans', async (req, res) => {
+router.post('/plans', requirePermission('inventory:*'), async (req, res) => {
   try {
     const { name, type, description, scheduledDate, targetRooms, targetRacks } = req.body;
 
@@ -162,7 +163,7 @@ router.post('/plans', async (req, res) => {
   }
 });
 
-router.put('/plans/:planId', async (req, res) => {
+router.put('/plans/:planId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const plan = await InventoryPlan.findByPk(req.params.planId);
     if (!plan) {
@@ -221,7 +222,7 @@ router.put('/plans/:planId', async (req, res) => {
   }
 });
 
-router.delete('/plans/:planId', async (req, res) => {
+router.delete('/plans/:planId', requirePermission('inventory:*'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const plan = await InventoryPlan.findByPk(req.params.planId, { transaction });
@@ -274,7 +275,7 @@ router.delete('/plans/:planId', async (req, res) => {
   }
 });
 
-router.post('/plans/:planId/start', async (req, res) => {
+router.post('/plans/:planId/start', requirePermission('inventory:*'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     // 原子抢占：UPDATE ... WHERE status IN ('draft','pending')
@@ -426,7 +427,7 @@ router.post('/plans/:planId/start', async (req, res) => {
   }
 });
 
-router.get('/tasks/:taskId', async (req, res) => {
+router.get('/tasks/:taskId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const task = await InventoryTask.findByPk(req.params.taskId, {
       include: [
@@ -490,7 +491,7 @@ router.get('/tasks/:taskId', async (req, res) => {
   }
 });
 
-router.put('/tasks/:taskId', async (req, res) => {
+router.put('/tasks/:taskId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const task = await InventoryTask.findByPk(req.params.taskId);
     if (!task) {
@@ -601,7 +602,7 @@ function deriveStatusFromStats(stats, currentStatus) {
  * 单事务批量更新，只聚合统计一次 task/plan，避免 N 次并发请求导致的超时与锁竞争
  * @route POST /api/inventory/records/batch-check
  */
-router.post('/records/batch-check', async (req, res) => {
+router.post('/records/batch-check', requirePermission('inventory:*'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { recordIds, status, remark } = req.body;
@@ -724,7 +725,7 @@ router.post('/records/batch-check', async (req, res) => {
   }
 });
 
-router.post('/records/:recordId/check', async (req, res) => {
+router.post('/records/:recordId/check', requirePermission('inventory:*'), async (req, res) => {
   try {
     const record = await InventoryRecord.findByPk(req.params.recordId, {
       include: [{ model: Device, as: 'Device' }],
@@ -835,7 +836,7 @@ router.post('/records/:recordId/check', async (req, res) => {
   }
 });
 
-router.get('/records', async (req, res) => {
+router.get('/records', requirePermission('inventory:*'), async (req, res) => {
   try {
     const { planId, taskId, status, page = 1, pageSize = 20 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -884,7 +885,7 @@ router.get('/records', async (req, res) => {
   }
 });
 
-router.post('/plans/:planId/complete', async (req, res) => {
+router.post('/plans/:planId/complete', requirePermission('inventory:*'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const plan = await InventoryPlan.findByPk(req.params.planId, { transaction });
@@ -992,7 +993,7 @@ router.post('/plans/:planId/complete', async (req, res) => {
   }
 });
 
-router.get('/stats/dashboard', async (req, res) => {
+router.get('/stats/dashboard', requirePermission('inventory:*'), async (req, res) => {
   try {
     const totalPlans = await InventoryPlan.count();
     const completedPlans = await InventoryPlan.count({ where: { status: 'completed' } });
@@ -1035,7 +1036,7 @@ router.get('/stats/dashboard', async (req, res) => {
   }
 });
 
-router.post('/quick-add-device', async (req, res) => {
+router.post('/quick-add-device', requirePermission('inventory:*'), async (req, res) => {
   try {
     const {
       taskId,
@@ -1157,7 +1158,7 @@ router.post('/quick-add-device', async (req, res) => {
   }
 });
 
-router.get('/pending-devices', async (req, res) => {
+router.get('/pending-devices', requirePermission('inventory:*'), async (req, res) => {
   try {
     const {
       status,
@@ -1212,7 +1213,7 @@ router.get('/pending-devices', async (req, res) => {
   }
 });
 
-router.get('/pending-devices/stats', async (req, res) => {
+router.get('/pending-devices/stats', requirePermission('inventory:*'), async (req, res) => {
   try {
     const total = await PendingDevice.count();
     const pending = await PendingDevice.count({ where: { status: 'pending' } });
@@ -1224,7 +1225,7 @@ router.get('/pending-devices/stats', async (req, res) => {
   }
 });
 
-router.get('/pending-devices/:pendingId', async (req, res) => {
+router.get('/pending-devices/:pendingId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const pendingDevice = await PendingDevice.findByPk(req.params.pendingId, {
       include: [
@@ -1246,7 +1247,7 @@ router.get('/pending-devices/:pendingId', async (req, res) => {
   }
 });
 
-router.put('/pending-devices/:pendingId', async (req, res) => {
+router.put('/pending-devices/:pendingId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const pendingDevice = await PendingDevice.findByPk(req.params.pendingId);
     if (!pendingDevice) {
@@ -1360,7 +1361,7 @@ router.put('/pending-devices/:pendingId', async (req, res) => {
   }
 });
 
-router.delete('/pending-devices/:pendingId', async (req, res) => {
+router.delete('/pending-devices/:pendingId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const pendingDevice = await PendingDevice.findByPk(req.params.pendingId);
     if (!pendingDevice) {
@@ -1397,7 +1398,7 @@ router.delete('/pending-devices/:pendingId', async (req, res) => {
   }
 });
 
-router.post('/pending-devices/:pendingId/sync', async (req, res) => {
+router.post('/pending-devices/:pendingId/sync', requirePermission('inventory:*'), async (req, res) => {
   try {
     const pendingDevice = await PendingDevice.findByPk(req.params.pendingId);
     if (!pendingDevice) {
@@ -1494,7 +1495,7 @@ router.post('/pending-devices/:pendingId/sync', async (req, res) => {
   }
 });
 
-router.post('/pending-devices/batch-sync', async (req, res) => {
+router.post('/pending-devices/batch-sync', requirePermission('inventory:*'), async (req, res) => {
   try {
     const { pendingIds } = req.body;
     if (!pendingIds || pendingIds.length === 0) {

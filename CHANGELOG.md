@@ -4,6 +4,42 @@
 
 ---
 
+## [2.4.0] - 2026-07-21
+
+### 新增功能
+
+#### 权限管理体系
+- 权限校验 新增 requirePermission 中间件，支持细粒度按钮级权限控制
+- 权限初始化 新增 init-permissions.js 种子脚本，预设三层权限结构（模块→菜单→按钮）
+- 角色管理 新增 RoleManagement 角色管理页面（前端页面 + 后端路由）
+- 权限路由 新增 permissions.js 路由，所有 backend 路由批量接入权限中间件
+- 权限模型 扩展 Permission 模型字段定义
+
+#### 网络拓扑重构
+- 拓扑图 新增 CustomEdge 自定义边组件，支持线缆类型（以太网/光纤/铜缆）与状态着色
+- 拓扑图 新增 GlassNodeShell / NodeShell / DeviceIcon 节点壳组件，提升设备节点视觉表现
+- 拓扑布局 新增 TopologyLayout 模型与 API，支持拓扑节点位置持久化
+- 拓扑侧边栏 TopologySidebar 全面重构，布局与交互优化
+- 拓扑模态框 TopologyModal 交互优化
+- TopologyControls 布局优化
+
+### 功能改进
+- 用户管理 UserManagement 页面增强，集成角色分配与搜索筛选
+- 登录页 Login 页面 UI 优化
+- 3D 组件 DeviceModel / RackModel / Scene 渲染优化
+- 前端路由 App.jsx 重构，优化页面组织结构
+- backend package.json 新增 init-database / init-permissions 脚本
+- hooks/useAuth 认证 hooks 优化
+- 前后端多个路由模块通用代码优化（26+ 个路由文件）
+
+### 问题修复
+- 拓扑路由 修复布局计算与查询逻辑
+- 端口管理 PortManagement 页面优化
+- 线缆管理 CableManagement 页面优化
+- 各路由统一接入鉴权中间件，修复未受保护的路由
+
+---
+
 ## [2.3.5] - 2026-07-21
 
 ### 功能改进

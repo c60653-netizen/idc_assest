@@ -11,6 +11,7 @@ const path = require('path');
 const { validateBody, validateQuery } = require('../middleware/validation');
 const { createRackSchema, updateRackSchema, queryRackSchema } = require('../validation/rackSchema');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录机柜操作日志
@@ -22,8 +23,7 @@ const { logOperation } = require('../utils/operationLogger');
 const logRackOperation = (operationType, operationDescription, params) =>
   logOperation({ module: 'rack', operationType, operationDescription, ...params });
 
-// 获取所有机柜
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('rack:view'), async (req, res) => {
   try {
     // 分页参数
     const page = parseInt(req.query.page) || 1;
@@ -89,8 +89,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取机柜统计信息（全量，不受分页影响）
-router.get('/stats', async (req, res) => {
+router.get('/stats', requirePermission('rack:view'), async (req, res) => {
   try {
     const { roomId, status, keyword } = req.query;
 
@@ -135,7 +134,7 @@ router.get('/stats', async (req, res) => {
 
 const MAX_EXPORT_SIZE = 50000;
 
-router.get('/all', async (req, res) => {
+router.get('/all', requirePermission('rack:view'), async (req, res) => {
   try {
     const { roomId, status, keyword } = req.query;
 
@@ -186,8 +185,7 @@ router.get('/all', async (req, res) => {
   }
 });
 
-// 导出机柜导入模板 - 必须放在 /:rackId 路由之前，避免被当作 rackId 参数
-router.get('/import-template', async (req, res) => {
+router.get('/import-template', requirePermission('rack:view'), async (req, res) => {
   try {
     // 准备模板数据 - 机柜ID留空表示自动生成
     const templateData = [
@@ -243,7 +241,7 @@ router.get('/import-template', async (req, res) => {
 });
 
 // 导出租机柜数据 - 必须放在 /:rackId 路由之前，避免被当作 rackId 参数
-router.get('/export', async (req, res) => {
+router.get('/export', requirePermission('rack:view'), async (req, res) => {
   try {
     const { rackIds } = req.query;
     const hasSelection = rackIds && rackIds.length > 0;
@@ -359,8 +357,7 @@ router.get('/export', async (req, res) => {
   }
 });
 
-// 获取单个机柜
-router.get('/:rackId', async (req, res) => {
+router.get('/:rackId', requirePermission('rack:view'), async (req, res) => {
   try {
     const rack = await Rack.findByPk(req.params.rackId, {
       include: [
@@ -405,8 +402,7 @@ async function generateRackId() {
   return `RACK${String(newNumber).padStart(3, '0')}`;
 }
 
-// 创建机柜
-router.post('/', validateBody(createRackSchema), async (req, res) => {
+router.post('/', validateBody(createRackSchema), requirePermission('rack:create'), async (req, res) => {
   try {
     const rackData = { ...req.body };
 
@@ -438,8 +434,7 @@ router.post('/', validateBody(createRackSchema), async (req, res) => {
   }
 });
 
-// 更新机柜
-router.put('/:rackId', validateBody(updateRackSchema), async (req, res) => {
+router.put('/:rackId', validateBody(updateRackSchema), requirePermission('rack:edit'), async (req, res) => {
   // 查询原始数据用于日志记录（在 try 外声明以便 catch 中可访问）
   let beforeState = null;
   try {
@@ -488,8 +483,7 @@ router.put('/:rackId', validateBody(updateRackSchema), async (req, res) => {
   }
 });
 
-// 删除机柜
-router.delete('/:rackId', async (req, res) => {
+router.delete('/:rackId', requirePermission('rack:delete'), async (req, res) => {
   // 用于日志记录的机柜信息（在 try 外声明以便 catch 中可访问）
   let rackName = null;
   let beforeState = null;
@@ -688,8 +682,7 @@ function validateRackData(jsonData, roomNameToIdMap, validRoomNames) {
   return { processedData, validationResults };
 }
 
-// 导入机柜数据预览（不写入数据库）
-router.post('/import-preview', async (req, res) => {
+router.post('/import-preview', requirePermission('rack:create'), async (req, res) => {
   try {
     // 检查是否有上传文件
     if (!req.files || !req.files.file) {
@@ -798,7 +791,7 @@ router.post('/import-preview', async (req, res) => {
 });
 
 // 导入机柜数据 - 优化版：使用事务+批量插入
-router.post('/import', async (req, res) => {
+router.post('/import', requirePermission('rack:create'), async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
@@ -981,8 +974,7 @@ router.post('/import', async (req, res) => {
   }
 });
 
-// 更新机柜位置
-router.put('/:rackId/position', async (req, res) => {
+router.put('/:rackId/position', requirePermission('rack:edit'), async (req, res) => {
   // 用于日志记录的机柜信息（在 try 外声明以便 catch 中可访问）
   let beforeState = null;
   let rackName = null;

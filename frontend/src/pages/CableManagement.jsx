@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Table,
   Button,
@@ -123,6 +123,8 @@ function CableManagement() {
   const [switchDevices, setSwitchDevices] = useState([]);
   const [groupedCables, setGroupedCables] = useState({});
   const [devicePorts, setDevicePorts] = useState({});
+  // 跟踪已加载过端口的设备 ID，避免重复请求和避免把 devicePorts 作为 fetchCables 依赖导致无限循环
+  const loadedPortsRef = useRef(new Set());
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     switchDeviceId: '',
@@ -198,16 +200,31 @@ function CableManagement() {
       const switchIds = Object.keys(grouped);
       setExpandedKeys(switchIds.slice(0, 5));
 
-      // 自动为每个交换机加载端口数据
-      for (const switchId of switchIds) {
-        if (!devicePorts[switchId]) {
-          try {
-            const portsResponse = await axios.get(`/api/device-ports/device/${switchId}`);
-            setDevicePorts(prev => ({ ...prev, [switchId]: portsResponse.data || [] }));
-          } catch (error) {
-            console.error(`获取交换机 ${switchId} 端口失败:`, error);
-          }
-        }
+      // 并行加载未加载过的交换机端口数据
+      // 用 ref 跟踪已加载的 id，避免把 devicePorts 作为依赖导致无限渲染循环
+      const missingIds = switchIds.filter(id => !loadedPortsRef.current.has(id));
+      if (missingIds.length > 0) {
+        // 先标记为已加载，防止并发重复请求
+        missingIds.forEach(id => loadedPortsRef.current.add(id));
+
+        const results = await Promise.all(
+          missingIds.map(id =>
+            axios
+              .get(`/api/device-ports/device/${id}`)
+              .then(res => ({ id, data: res.data || [] }))
+              .catch(error => {
+                console.error(`获取交换机 ${id} 端口失败:`, error);
+                // 加载失败时移除标记，允许后续重试
+                loadedPortsRef.current.delete(id);
+                return { id, data: [] };
+              })
+          )
+        );
+        const newPorts = {};
+        results.forEach(r => {
+          newPorts[r.id] = r.data;
+        });
+        setDevicePorts(prev => ({ ...prev, ...newPorts }));
       }
     } catch (error) {
       message.error('获取接线列表失败');
@@ -215,7 +232,7 @@ function CableManagement() {
     } finally {
       setLoading(false);
     }
-  }, [filters, devicePorts]);
+  }, [filters]);
 
   const fetchDevices = useCallback(async (keyword = '') => {
     try {
@@ -268,12 +285,17 @@ function CableManagement() {
       return;
     }
 
+    // 标记为已加载，避免后续 fetchCables 重复加载
+    loadedPortsRef.current.add(deviceId);
+
     try {
       const response = await axios.get(`/api/device-ports/device/${deviceId}`);
       setDevicePorts(prev => ({ ...prev, [deviceId]: response.data || [] }));
     } catch (error) {
       console.error('获取设备端口失败:', error);
       setDevicePorts(prev => ({ ...prev, [deviceId]: [] }));
+      // 加载失败时移除标记，允许后续重试
+      loadedPortsRef.current.delete(deviceId);
     }
   }, []);
 

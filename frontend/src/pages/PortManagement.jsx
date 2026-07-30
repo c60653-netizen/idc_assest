@@ -220,6 +220,7 @@ function PortManagement() {
   const [serverNicSearchText, setServerNicSearchText] = useState('');
   const [serverNicRoomFilter, setServerNicRoomFilter] = useState('all');
   const [serverNicRackFilter, setServerNicRackFilter] = useState('all');
+  const [serverNicTypeFilter, setServerNicTypeFilter] = useState('all');
   const [serverNicCardPage, setServerNicCardPage] = useState(1);
   const serverNicCardPageSize = 12;
 
@@ -395,61 +396,19 @@ function PortManagement() {
     setServerNicListVisible(true);
     setServerNicLoading(true);
     try {
-      const [devicesResponse, portsResponse, nicsResponse, roomsData, racksData] =
-        await Promise.all([
-          api.get('/devices/all', { params: { type: 'server' } }),
-          api.get('/device-ports', { params: { pageSize: 10000 } }),
-          api.get('/network-cards'),
-          roomAPI.list(),
-          api.get('/racks', { params: { pageSize: 1000 } }),
-        ]);
+      const [summaryResponse, roomsData, racksData] = await Promise.all([
+        api.get('/network-cards/devices-summary'),
+        roomAPI.list(),
+        api.get('/racks', { params: { pageSize: 1000 } }),
+      ]);
       setRoomList(roomsData.rooms || roomsData || []);
       setRackList(racksData.racks || racksData || []);
 
-      const servers = devicesResponse.devices || devicesResponse || [];
-      const ports = portsResponse.ports || portsResponse || [];
-      let allNics = [];
-
-      if (Array.isArray(nicsResponse)) {
-        allNics = nicsResponse;
-      } else if (nicsResponse && Array.isArray(nicsResponse.data)) {
-        allNics = nicsResponse.data;
-      } else if (nicsResponse && Array.isArray(nicsResponse.networkCards)) {
-        allNics = nicsResponse.networkCards;
-      }
-
-      console.log('[DEBUG] handleManageServerNics:', {
-        serversCount: servers.length,
-        portsCount: ports.length,
-        nicsCount: allNics.length,
-        sampleServer: servers[0],
-        sampleNic: allNics[0],
-      });
-
-      const serversWithPorts = new Set(ports.map(p => p.deviceId));
-      const serversWithNics = servers.filter(server => {
-        const serverNics = allNics.filter(nic => nic.deviceId === server.deviceId);
-        return serverNics.length > 0;
-      });
-
-      const serversNeedingAttention = serversWithNics
-        .filter(server => !serversWithPorts.has(server.deviceId))
-        .map(server => {
-          const serverNics = allNics.filter(nic => nic.deviceId === server.deviceId);
-          return { ...server, nics: serverNics, nicCount: serverNics.length };
-        });
-
-      console.log(
-        '[DEBUG] serversWithNics:',
-        serversWithNics.length,
-        'serversNeedingAttention:',
-        serversNeedingAttention.length
-      );
-
-      setServerNicList(serversNeedingAttention);
+      const list = Array.isArray(summaryResponse) ? summaryResponse : summaryResponse.data || [];
+      setServerNicList(list);
     } catch (error) {
-      console.error('获取服务器列表失败:', error);
-      message.error('获取服务器列表失败: ' + (error.message || error));
+      console.error('获取设备网卡列表失败:', error);
+      message.error('获取设备网卡列表失败: ' + (error.message || error));
     } finally {
       setServerNicLoading(false);
     }
@@ -4024,7 +3983,7 @@ function PortManagement() {
             >
               <CloudServerOutlined />
             </div>
-            <span style={{ fontSize: '18px', fontWeight: 600 }}>服务器网卡管理</span>
+            <span style={{ fontSize: '18px', fontWeight: 600 }}>设备网卡管理</span>
           </div>
         }
         open={serverNicListVisible}
@@ -4035,6 +3994,7 @@ function PortManagement() {
           setServerNicSearchText('');
           setServerNicRoomFilter('all');
           setServerNicRackFilter('all');
+          setServerNicTypeFilter('all');
           setServerNicCardPage(1);
         }}
         footer={null}
@@ -4057,7 +4017,7 @@ function PortManagement() {
               }}
             >
               <Input
-                placeholder="搜索服务器名称或ID..."
+                placeholder="搜索设备名称或ID..."
                 prefix={<SearchOutlined style={{ color: designTokens.colors.primary.main }} />}
                 value={serverNicSearchText}
                 onChange={e => {
@@ -4108,6 +4068,22 @@ function PortManagement() {
                     </Option>
                   ))}
               </Select>
+              <Select
+                value={serverNicTypeFilter}
+                onChange={value => {
+                  setServerNicTypeFilter(value);
+                  setServerNicCardPage(1);
+                }}
+                style={{ width: '120px' }}
+                placeholder="设备类型"
+              >
+                <Option value="all">全部类型</Option>
+                <Option value="server">服务器</Option>
+                <Option value="switch">交换机</Option>
+                <Option value="router">路由器</Option>
+                <Option value="storage">存储</Option>
+                <Option value="other">其他</Option>
+              </Select>
               <div
                 style={{
                   marginLeft: 'auto',
@@ -4140,11 +4116,13 @@ function PortManagement() {
                         !serverNicSearchText ||
                         server.name?.toLowerCase().includes(serverNicSearchText.toLowerCase()) ||
                         server.deviceId?.toLowerCase().includes(serverNicSearchText.toLowerCase());
+                      const typeMatch =
+                        serverNicTypeFilter === 'all' || server.type === serverNicTypeFilter;
                       const roomMatch =
                         serverNicRoomFilter === 'all' || server.roomId === serverNicRoomFilter;
                       const rackMatch =
                         serverNicRackFilter === 'all' || server.rackId === serverNicRackFilter;
-                      return searchMatch && roomMatch && rackMatch;
+                      return searchMatch && typeMatch && roomMatch && rackMatch;
                     })
                     .slice(
                       (serverNicCardPage - 1) * serverNicCardPageSize,
@@ -4168,11 +4146,13 @@ function PortManagement() {
                     !serverNicSearchText ||
                     server.name?.toLowerCase().includes(serverNicSearchText.toLowerCase()) ||
                     server.deviceId?.toLowerCase().includes(serverNicSearchText.toLowerCase());
+                  const typeMatch =
+                    serverNicTypeFilter === 'all' || server.type === serverNicTypeFilter;
                   const roomMatch =
                     serverNicRoomFilter === 'all' || server.roomId === serverNicRoomFilter;
                   const rackMatch =
                     serverNicRackFilter === 'all' || server.rackId === serverNicRackFilter;
-                  return searchMatch && roomMatch && rackMatch;
+                  return searchMatch && typeMatch && roomMatch && rackMatch;
                 }).length > serverNicCardPageSize && (
                   <div
                     style={{

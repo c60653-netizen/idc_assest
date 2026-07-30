@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const ConsumableCategory = require('../models/ConsumableCategory');
+const requirePermission = require('../middleware/requirePermission');
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { keyword, status, page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -43,7 +44,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/list', async (req, res) => {
+router.get('/list', requirePermission('consumable:view'), async (req, res) => {
   try {
     const categories = await ConsumableCategory.findAll({
       where: { status: 'active' },
@@ -58,7 +59,7 @@ router.get('/list', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('consumable:view'), async (req, res) => {
   try {
     const category = await ConsumableCategory.findByPk(req.params.id);
     if (!category) {
@@ -70,7 +71,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('consumable:category:create'), async (req, res) => {
   try {
     const { name, description, sortOrder, status } = req.body;
 
@@ -92,7 +93,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('consumable:category:edit'), async (req, res) => {
   try {
     const { name, description, sortOrder, status } = req.body;
     const category = await ConsumableCategory.findByPk(req.params.id);
@@ -121,7 +122,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('consumable:category:delete'), async (req, res) => {
   try {
     const category = await ConsumableCategory.findByPk(req.params.id);
 

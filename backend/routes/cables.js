@@ -6,6 +6,8 @@ const Cable = require('../models/Cable');
 const Device = require('../models/Device');
 const DevicePort = require('../models/DevicePort');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
+const { authMiddleware } = require('../middleware/auth');
 
 /**
  * 记录线缆操作日志
@@ -189,7 +191,7 @@ async function freePort(deviceId, portName) {
   await updatePortStatus(deviceId, portName, 'free');
 }
 
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, requirePermission('cable:view'), async (req, res) => {
   try {
     const {
       sourceDeviceId,
@@ -250,7 +252,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/device/:deviceId', async (req, res) => {
+router.get('/device/:deviceId', authMiddleware, requirePermission('cable:view'), async (req, res) => {
   try {
     const { deviceId } = req.params;
 
@@ -280,7 +282,7 @@ router.get('/device/:deviceId', async (req, res) => {
 });
 
 // 获取指定机柜内所有设备的接线
-router.get('/rack/:rackId', async (req, res) => {
+router.get('/rack/:rackId', authMiddleware, requirePermission('cable:view'), async (req, res) => {
   try {
     const { rackId } = req.params;
 
@@ -326,7 +328,7 @@ router.get('/rack/:rackId', async (req, res) => {
 });
 
 // 检查接线冲突
-router.post('/check-conflict', async (req, res) => {
+router.post('/check-conflict', authMiddleware, requirePermission('cable:view'), async (req, res) => {
   try {
     const { sourceDeviceId, sourcePort, targetDeviceId, targetPort, excludeCableId } = req.body;
 
@@ -411,7 +413,7 @@ router.post('/check-conflict', async (req, res) => {
 });
 
 // 检查端口兼容性
-router.post('/check-compatibility', async (req, res) => {
+router.post('/check-compatibility', authMiddleware, requirePermission('cable:view'), async (req, res) => {
   try {
     const { sourceDeviceId, sourcePort, targetDeviceId, targetPort } = req.body;
 
@@ -431,7 +433,7 @@ router.post('/check-compatibility', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, requirePermission('cable:create'), async (req, res) => {
   try {
     const {
       cableId,
@@ -581,7 +583,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.post('/batch', async (req, res) => {
+router.post('/batch', authMiddleware, requirePermission('cable:create'), async (req, res) => {
   try {
     const { cables } = req.body;
 
@@ -685,7 +687,7 @@ router.post('/batch', async (req, res) => {
   }
 });
 
-router.put('/:cableId', async (req, res) => {
+router.put('/:cableId', authMiddleware, requirePermission('cable:edit'), async (req, res) => {
   try {
     // 获取更新前的接线信息
     const oldCable = await Cable.findByPk(req.params.cableId);
@@ -764,7 +766,7 @@ router.put('/:cableId', async (req, res) => {
 });
 
 // 批量删除接线
-router.delete('/batch', async (req, res) => {
+router.delete('/batch', authMiddleware, requirePermission('cable:delete'), async (req, res) => {
   try {
     const { cableIds } = req.body;
 
@@ -822,7 +824,7 @@ router.delete('/batch', async (req, res) => {
 });
 
 // 删除单个接线
-router.delete('/:cableId', async (req, res) => {
+router.delete('/:cableId', authMiddleware, requirePermission('cable:delete'), async (req, res) => {
   try {
     // 先获取接线信息，用于后续恢复端口状态
     const cable = await Cable.findByPk(req.params.cableId);
@@ -868,7 +870,7 @@ router.delete('/:cableId', async (req, res) => {
   }
 });
 
-router.get('/:cableId', async (req, res) => {
+router.get('/:cableId', authMiddleware, requirePermission('cable:view'), async (req, res) => {
   try {
     const cable = await Cable.findByPk(req.params.cableId, {
       include: [

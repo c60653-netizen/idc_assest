@@ -308,6 +308,12 @@ async function initDatabase() {
     }
     console.log('系统设置初始化/更新完成');
 
+    // 初始化权限种子数据
+    console.log('开始初始化权限数据...');
+    const { initPermissions } = require('./init-permissions');
+    await initPermissions();
+    console.log('权限数据初始化完成');
+
     console.log('数据库初始化完成！');
     process.exit(0);
   } catch (error) {

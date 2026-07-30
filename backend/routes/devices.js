@@ -23,6 +23,7 @@ const {
   queryDeviceSchema,
 } = require('../validation/deviceSchema');
 const { createDeviceSchema } = require('../validation/dynamicDeviceSchema');
+const requirePermission = require('../middleware/requirePermission');
 
 const PREVIEW_COUNT = 20;
 
@@ -160,7 +161,7 @@ async function checkBatchPositions(rackId, devices, excludeDeviceIds = [], trans
   return conflicts;
 }
 
-router.post('/import-preview', async (req, res) => {
+router.post('/import-preview', requirePermission('device:create'), async (req, res) => {
   try {
     if (!req.files || !req.files.csvFile) {
       return res.status(400).json({ error: '请上传CSV文件' });
@@ -520,7 +521,7 @@ router.post('/import-preview', async (req, res) => {
   }
 });
 
-router.get('/', validateQuery(queryDeviceSchema), async (req, res) => {
+router.get('/', validateQuery(queryDeviceSchema), requirePermission('device:view'), async (req, res) => {
   try {
     const { keyword, status, type, rackId, roomId, isIdle } = req.query;
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -662,7 +663,7 @@ router.get('/', validateQuery(queryDeviceSchema), async (req, res) => {
 
 const MAX_EXPORT_SIZE = 50000;
 
-router.get('/all', async (req, res) => {
+router.get('/all', requirePermission('device:view'), async (req, res) => {
   try {
     const { keyword, status, type, rackId, roomId } = req.query;
 
@@ -750,7 +751,7 @@ async function generateDeviceId() {
 }
 
 // 创建设备
-router.post('/', validateBody(() => createDeviceSchema(false)), async (req, res) => {
+router.post('/', validateBody(() => createDeviceSchema(false)), requirePermission('device:create'), async (req, res) => {
   try {
     const deviceData = { ...req.body };
 
@@ -817,7 +818,7 @@ router.post('/', validateBody(() => createDeviceSchema(false)), async (req, res)
 });
 
 // 设备导入模板下载
-router.get('/import-template', async (req, res) => {
+router.get('/import-template', requirePermission('device:view'), async (req, res) => {
   try {
     // 查询设备字段配置
     const deviceFields = await DeviceField.findAll({
@@ -952,8 +953,7 @@ router.get('/import-template', async (req, res) => {
   }
 });
 
-// 导出设备数据为CSV
-router.get('/export', async (req, res) => {
+router.get('/export', requirePermission('device:view'), async (req, res) => {
   try {
     const { deviceIds } = req.query;
 
@@ -1079,8 +1079,7 @@ router.get('/export', async (req, res) => {
   }
 });
 
-// 导入设备数据从CSV - 优化版：使用事务+批量插入
-router.post('/import', async (req, res) => {
+router.post('/import', requirePermission('device:create'), async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
@@ -1517,7 +1516,7 @@ router.post('/import', async (req, res) => {
 });
 
 // 批量上线设备
-router.put('/batch-online', validateBody(batchDeviceIdsSchema), async (req, res) => {
+router.put('/batch-online', validateBody(batchDeviceIdsSchema), requirePermission('device:edit'), async (req, res) => {
   try {
     const { deviceIds } = req.body;
 
@@ -1541,7 +1540,7 @@ router.put('/batch-online', validateBody(batchDeviceIdsSchema), async (req, res)
 });
 
 // 批量下线设备
-router.put('/batch-offline', validateBody(batchDeviceIdsSchema), async (req, res) => {
+router.put('/batch-offline', validateBody(batchDeviceIdsSchema), requirePermission('device:edit'), async (req, res) => {
   try {
     const { deviceIds } = req.body;
 
@@ -1564,8 +1563,7 @@ router.put('/batch-offline', validateBody(batchDeviceIdsSchema), async (req, res
   }
 });
 
-// 批量变更设备状态
-router.put('/batch-status', async (req, res) => {
+router.put('/batch-status', requirePermission('device:edit'), async (req, res) => {
   try {
     const { deviceIds, status } = req.body;
 
@@ -1671,8 +1669,7 @@ router.put('/batch-status', async (req, res) => {
   }
 });
 
-// 批量移动设备
-router.put('/batch-move', async (req, res) => {
+router.put('/batch-move', requirePermission('device:edit'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { deviceIds, targetRackId, startPosition } = req.body;
@@ -1883,7 +1880,7 @@ router.put('/batch-move', async (req, res) => {
 });
 
 // 批量更新维保信息
-router.put('/batch-warranty', validateBody(batchWarrantySchema), async (req, res) => {
+router.put('/batch-warranty', validateBody(batchWarrantySchema), requirePermission('device:edit'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { deviceIds, purchaseDate, warrantyExpiry } = req.body;
@@ -1971,9 +1968,7 @@ router.put('/batch-warranty', validateBody(batchWarrantySchema), async (req, res
   }
 });
 
-// 增强导出设备数据（支持所有字段和自定义字段）
-// 改为 POST 请求，支持按筛选条件导出全部设备，避免 URL 长度限制
-router.post('/enhanced-export', async (req, res) => {
+router.post('/enhanced-export', requirePermission('device:view'), async (req, res) => {
   try {
     const { deviceIds, format = 'csv', filters } = req.body;
 
@@ -2232,8 +2227,7 @@ router.post('/enhanced-export', async (req, res) => {
   }
 });
 
-// 检查U位是否可用
-router.get('/check-position/:rackId', async (req, res) => {
+router.get('/check-position/:rackId', requirePermission('device:view'), async (req, res) => {
   try {
     const { rackId } = req.params;
     const { position, height, excludeDeviceId } = req.query;
@@ -2255,8 +2249,7 @@ router.get('/check-position/:rackId', async (req, res) => {
   }
 });
 
-// 获取单个设备
-router.get('/:deviceId', async (req, res) => {
+router.get('/:deviceId', requirePermission('device:view'), async (req, res) => {
   try {
     const device = await Device.findByPk(req.params.deviceId, {
       include: [
@@ -2275,8 +2268,7 @@ router.get('/:deviceId', async (req, res) => {
   }
 });
 
-// 将设备标记为空闲
-router.put('/:deviceId/to-idle', async (req, res) => {
+router.put('/:deviceId/to-idle', requirePermission('device:edit'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { idleReason } = req.body;
@@ -2349,8 +2341,7 @@ router.put('/:deviceId/to-idle', async (req, res) => {
   }
 });
 
-// 获取设备的工单列表
-router.get('/:deviceId/tickets', async (req, res) => {
+router.get('/:deviceId/tickets', requirePermission('device:view'), async (req, res) => {
   try {
     const { deviceId } = req.params;
     const { status, page = 1, pageSize = 10 } = req.query;
@@ -2387,8 +2378,7 @@ router.get('/:deviceId/tickets', async (req, res) => {
   }
 });
 
-// 更新设备
-router.put('/:deviceId', validateBody(() => createDeviceSchema(true)), async (req, res) => {
+router.put('/:deviceId', validateBody(() => createDeviceSchema(true)), requirePermission('device:edit'), async (req, res) => {
   try {
     const oldDevice = await Device.findByPk(req.params.deviceId);
     if (!oldDevice) {
@@ -2533,8 +2523,7 @@ router.put('/:deviceId', validateBody(() => createDeviceSchema(true)), async (re
   }
 });
 
-// 批量删除设备
-router.post('/batch-delete', validateBody(batchDeviceIdsSchema), async (req, res) => {
+router.post('/batch-delete', validateBody(batchDeviceIdsSchema), requirePermission('device:delete'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { deviceIds } = req.body;
@@ -2642,8 +2631,7 @@ router.post('/batch-delete', validateBody(batchDeviceIdsSchema), async (req, res
   }
 });
 
-// 删除所有设备（一键清空）
-router.delete('/delete-all', async (req, res) => {
+router.delete('/delete-all', requirePermission('device:delete'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     // 获取所有设备
@@ -2725,8 +2713,7 @@ router.delete('/delete-all', async (req, res) => {
   }
 });
 
-// 删除设备
-router.delete('/:deviceId', async (req, res) => {
+router.delete('/:deviceId', requirePermission('device:delete'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { deviceId } = req.params;

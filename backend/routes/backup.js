@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { authMiddleware } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 安全解析备份文件路径，防止路径遍历攻击
@@ -74,7 +75,10 @@ if (!fs.existsSync(tempDir)) {
 // 全局认证保护：所有备份路由需要登录
 router.use(authMiddleware);
 
-router.post('/', async (req, res) => {
+// 基础权限校验：用户至少需要备份模块的任意一个权限才能访问
+router.use(requirePermission('backup:view', 'backup:create', 'backup:restore', 'backup:delete', 'backup:auto', 'backup:remote'));
+
+router.post('/', requirePermission('backup:create'), async (req, res) => {
   try {
     const { description = '', includeFiles = true } = req.body;
 

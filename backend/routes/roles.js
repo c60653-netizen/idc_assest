@@ -5,6 +5,7 @@ const Permission = require('../models/Permission');
 const UserRole = require('../models/UserRole');
 const User = require('../models/User');
 const { authMiddleware } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 const { logRoleOperation } = require('../utils/operationLogger');
 const { generateId } = require('../utils/idGenerator');
 
@@ -12,7 +13,7 @@ const router = express.Router();
 
 const { Op } = require('sequelize');
 
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requirePermission('role:view'), async (req, res) => {
   try {
     const { page = 1, pageSize = 10, roleName, status } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
@@ -54,7 +55,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/all', authMiddleware, async (req, res) => {
+router.get('/all', authMiddleware, requirePermission('role:view'), async (req, res) => {
   try {
     const roles = await Role.findAll({
       where: { status: 'active' },
@@ -74,7 +75,7 @@ router.get('/all', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/:roleId', authMiddleware, async (req, res) => {
+router.get('/:roleId', authMiddleware, requirePermission('role:view'), async (req, res) => {
   try {
     const role = await Role.findByPk(req.params.roleId);
 
@@ -107,18 +108,21 @@ router.get('/:roleId', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, requirePermission('role:create'), async (req, res) => {
   try {
     const { roleName, roleCode, description, permissions, status, sort } = req.body;
 
-    if (!roleName || !roleCode) {
+    if (!roleName) {
       return res.status(400).json({
         success: false,
-        message: '角色名称和角色编码不能为空',
+        message: '角色名称不能为空',
       });
     }
 
-    const existingRole = await Role.findOne({ where: { roleCode } });
+    // 如果未提供 roleCode，自动生成
+    const finalRoleCode = roleCode || 'role_' + Date.now().toString(36);
+
+    const existingRole = await Role.findOne({ where: { roleCode: finalRoleCode } });
     if (existingRole) {
       return res.status(400).json({
         success: false,
@@ -129,7 +133,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const role = await Role.create({
       roleId: generateId({ prefix: 'ROLE' }),
       roleName,
-      roleCode,
+      roleCode: finalRoleCode,
       description,
       permissions: permissions || [],
       status: status || 'active',
@@ -140,13 +144,13 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await logRoleOperation(
       'create',
-      `创建角色【${roleName}】（编码：${roleCode}，权限：${permissionNames}）`,
+      `创建角色【${roleName}】（编码：${finalRoleCode}，权限：${permissionNames}）`,
       {
         targetId: role.roleId,
         targetName: roleName,
         afterState: role.toJSON(),
         req,
-        metadata: { roleCode, permissions, permissionNames },
+        metadata: { roleCode: finalRoleCode, permissions, permissionNames },
       }
     );
 
@@ -171,7 +175,7 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/:roleId', authMiddleware, async (req, res) => {
+router.put('/:roleId', authMiddleware, requirePermission('role:edit'), async (req, res) => {
   try {
     const { roleName, description, permissions, status, sort } = req.body;
     const role = await Role.findByPk(req.params.roleId);
@@ -181,6 +185,22 @@ router.put('/:roleId', authMiddleware, async (req, res) => {
         success: false,
         message: '角色不存在',
       });
+    }
+
+    // 禁止修改 admin 角色的 roleCode 和 permissions
+    if (role.roleCode === 'admin') {
+      if (permissions !== undefined) {
+        return res.status(403).json({
+          success: false,
+          message: '不允许修改系统管理员的权限配置',
+        });
+      }
+      if (roleName !== undefined && roleName !== role.roleName) {
+        return res.status(403).json({
+          success: false,
+          message: '不允许修改系统管理员的角色名称',
+        });
+      }
     }
 
     const beforeState = role.toJSON();
@@ -288,7 +308,7 @@ router.put('/:roleId', authMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/:roleId', authMiddleware, async (req, res) => {
+router.delete('/:roleId', authMiddleware, requirePermission('role:delete'), async (req, res) => {
   try {
     const role = await Role.findByPk(req.params.roleId);
 
@@ -348,62 +368,6 @@ router.delete('/:roleId', authMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       message: '删除角色失败',
-    });
-  }
-});
-
-router.post('/init-roles', authMiddleware, async (req, res) => {
-  try {
-    const defaultRoles = [
-      {
-        roleId: 'role_admin',
-        roleName: '管理员',
-        roleCode: 'admin',
-        description: '系统管理员，拥有所有权限',
-        permissions: ['*'],
-        status: 'active',
-        sort: 1,
-      },
-      {
-        roleId: 'role_operator',
-        roleName: '运维人员',
-        roleCode: 'operator',
-        description: '负责日常运维操作',
-        permissions: [
-          'devices:read',
-          'devices:write',
-          'racks:read',
-          'rooms:read',
-          'consumables:read',
-          'consumables:write',
-        ],
-        status: 'active',
-        sort: 2,
-      },
-      {
-        roleId: 'role_viewer',
-        roleName: '只读用户',
-        roleCode: 'viewer',
-        description: '仅能查看数据',
-        permissions: ['devices:read', 'racks:read', 'rooms:read', 'consumables:read'],
-        status: 'active',
-        sort: 3,
-      },
-    ];
-
-    for (const roleData of defaultRoles) {
-      await Role.upsert(roleData);
-    }
-
-    res.json({
-      success: true,
-      message: '初始化角色成功',
-    });
-  } catch (error) {
-    logger.error('初始化角色错误', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      success: false,
-      message: '初始化角色失败',
     });
   }
 });

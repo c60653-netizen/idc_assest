@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import * as THREE from 'three';
 import DeviceModel from './DeviceModel';
 import LODManager, { LOD_LEVELS } from './LODManager';
@@ -42,7 +42,8 @@ const SHARED_DUMMY = new THREE.Object3D();
 const TickInstances = ({ instances, geometry, material }) => {
   const meshRef = useRef();
 
-  useEffect(() => {
+  // useLayoutEffect：在绘制前同步设置实例矩阵，避免首帧渲染单位矩阵导致的大黑块
+  useLayoutEffect(() => {
     if (!meshRef.current) return;
     for (let i = 0; i < instances.length; i += 1) {
       const inst = instances[i];

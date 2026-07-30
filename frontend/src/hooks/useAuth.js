@@ -16,6 +16,7 @@ export const useAuth = () => {
   const logout = useAuthStore((s) => s.logout);
   const updateUser = useAuthStore((s) => s.updateUser);
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const getPermissionCodes = useAuthStore((s) => s.getPermissionCodes);
   const checkAdmin = useAuthStore((s) => s.checkAdmin);
   const initialize = useAuthStore((s) => s.initialize);
 
@@ -35,6 +36,7 @@ export const useAuth = () => {
     logout,
     updateUser,
     hasPermission,
+    getPermissionCodes,
     checkAdmin,
   };
 };

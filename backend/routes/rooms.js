@@ -5,6 +5,7 @@ const { sequelize } = require('../db');
 const { validateBody } = require('../middleware/validation');
 const { createRoomSchema, updateRoomSchema } = require('../validation/roomSchema');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录机房操作日志
@@ -16,8 +17,7 @@ const { logOperation } = require('../utils/operationLogger');
 const logRoomOperation = (operationType, operationDescription, params) =>
   logOperation({ module: 'room', operationType, operationDescription, ...params });
 
-// 获取所有机房
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('room:view'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 100;
@@ -38,8 +38,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取单个机房
-router.get('/:roomId', async (req, res) => {
+router.get('/:roomId', requirePermission('room:view'), async (req, res) => {
   try {
     const room = await Room.findByPk(req.params.roomId, {
       include: Rack,
@@ -53,8 +52,7 @@ router.get('/:roomId', async (req, res) => {
   }
 });
 
-// 创建机房
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('room:create'), async (req, res) => {
   try {
     const room = await Room.create(req.body);
     // 记录创建机房成功日志
@@ -78,8 +76,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 更新机房
-router.put('/:roomId', validateBody(updateRoomSchema), async (req, res) => {
+router.put('/:roomId', validateBody(updateRoomSchema), requirePermission('room:edit'), async (req, res) => {
   try {
     const beforeRoom = await Room.findByPk(req.params.roomId);
     if (!beforeRoom) {
@@ -117,8 +114,7 @@ router.put('/:roomId', validateBody(updateRoomSchema), async (req, res) => {
   }
 });
 
-// 删除机房
-router.delete('/:roomId', async (req, res) => {
+router.delete('/:roomId', requirePermission('room:delete'), async (req, res) => {
   try {
     const beforeRoom = await Room.findByPk(req.params.roomId);
     if (!beforeRoom) {
@@ -158,8 +154,7 @@ router.delete('/:roomId', async (req, res) => {
   }
 });
 
-// 获取机房平面图布局数据
-router.get('/:roomId/layout', async (req, res) => {
+router.get('/:roomId/layout', requirePermission('room:view'), async (req, res) => {
   try {
     const room = await Room.findByPk(req.params.roomId);
     if (!room) {
@@ -235,8 +230,7 @@ router.get('/:roomId/layout', async (req, res) => {
   }
 });
 
-// 更新机房布局参数
-router.put('/:roomId/layout', async (req, res) => {
+router.put('/:roomId/layout', requirePermission('room:edit'), async (req, res) => {
   try {
     const { gridRows, gridCols, layoutConfig } = req.body;
     const beforeRoom = await Room.findByPk(req.params.roomId);
@@ -274,8 +268,7 @@ router.put('/:roomId/layout', async (req, res) => {
   }
 });
 
-// 批量更新机房内机柜位置
-router.put('/:roomId/racks-positions', async (req, res) => {
+router.put('/:roomId/racks-positions', requirePermission('room:edit'), async (req, res) => {
   try {
     const { positions } = req.body;
     if (!Array.isArray(positions)) {
@@ -317,8 +310,7 @@ router.put('/:roomId/racks-positions', async (req, res) => {
   }
 });
 
-// 初始化机房布局（自动分配所有机柜位置）
-router.post('/:roomId/init-layout', async (req, res) => {
+router.post('/:roomId/init-layout', requirePermission('room:edit'), async (req, res) => {
   try {
     const { gridRows, gridCols } = req.body;
     const rows = gridRows || 10;

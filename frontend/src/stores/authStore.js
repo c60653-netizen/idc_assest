@@ -100,13 +100,47 @@ export const useAuthStore = create((set, get) => ({
     });
   },
 
+  /**
+   * 获取当前用户所有角色的权限码集合（去重合并）
+   * @returns {string[]} 权限码数组
+   */
+  getPermissionCodes: () => {
+    const { user } = get();
+    if (!user) return [];
+    const roles = user.roles || [];
+    const permSet = new Set();
+    roles.forEach((role) => {
+      if (role.permissions && Array.isArray(role.permissions)) {
+        role.permissions.forEach((p) => permSet.add(p));
+      }
+    });
+    return Array.from(permSet);
+  },
+
+  /**
+   * 判断当前用户是否拥有指定权限
+   * 支持判断 permissionCode（如 'device:create'）
+   * admin 角色拥有所有权限
+   * @param {string} permission - 权限码
+   * @returns {boolean}
+   */
   hasPermission: (permission) => {
     const { user } = get();
-    if (!user) return false;
+    if (!user || !permission) return false;
     const roles = user.roles || [];
+    // admin 角色拥有所有权限
     if (roles.some((r) => r.roleCode === 'admin')) return true;
     if (permission === 'admin') return roles.some((r) => r.roleCode === 'admin');
-    return roles.some((r) => r.roleCode === permission);
+    // 从所有角色的 permissions 数组合并判断
+    const permissionsSet = new Set();
+    roles.forEach((role) => {
+      if (role.permissions && Array.isArray(role.permissions)) {
+        role.permissions.forEach((p) => permissionsSet.add(p));
+      }
+    });
+    // * 表示全部权限
+    if (permissionsSet.has('*')) return true;
+    return permissionsSet.has(permission);
   },
 
   checkAdmin: () => authAPI.checkAdmin(),

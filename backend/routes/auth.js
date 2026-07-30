@@ -356,6 +356,7 @@ router.post('/login', async (req, res) => {
             roleId: r.roleId,
             roleName: r.roleName,
             roleCode: r.roleCode,
+            permissions: r.permissions || [],
           })),
         },
         token,
@@ -405,6 +406,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
             roleId: role.roleId,
             roleName: role.roleName,
             roleCode: role.roleCode,
+            permissions: role.permissions || [],
           };
         }),
       },

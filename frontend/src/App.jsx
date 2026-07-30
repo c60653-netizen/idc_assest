@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import {
   Layout,
   Menu,
@@ -36,6 +36,7 @@ import {
   CodepenOutlined,
   CloudUploadOutlined,
   LayoutOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import {
   BrowserRouter as Router,
@@ -69,6 +70,7 @@ const ConsumableStatistics = lazy(() => import('./pages/ConsumableStatistics'));
 const ConsumableLogs = lazy(() => import('./pages/ConsumableLogs'));
 const CategoryManagement = lazy(() => import('./pages/CategoryManagement'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
+const RoleManagement = lazy(() => import('./pages/RoleManagement'));
 const Login = lazy(() => import('./pages/Login'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const TicketManagement = lazy(() => import('./pages/TicketManagement'));
@@ -155,7 +157,7 @@ const AppLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [activeKey, setActiveKey] = useState('dashboard');
   const [idleConfig, setIdleConfig] = useState(DEFAULT_IDLE_CONFIG);
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { config } = useConfig();
   const siteLogo = useSiteLogo();
   const navigate = useNavigate();
@@ -220,165 +222,79 @@ const AppLayout = ({ children }) => {
     return 'dashboard';
   };
 
-  const menuItems = [
+  const menuItems = useMemo(() => [
     {
       key: 'dashboard',
       icon: <BarChartOutlined style={{ fontSize: '18px' }} />,
       label: <Link to="/">仪表盘</Link>,
     },
-    {
+    ...(hasPermission('room:view') || hasPermission('rack:view') || hasPermission('rack:3d') || hasPermission('floorplan') ? [{
       key: 'room-management',
       icon: <HomeOutlined style={{ fontSize: '18px' }} />,
       label: '机房管理',
       children: [
-        {
-          key: 'rooms',
-          icon: <HomeOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/rooms">机房管理</Link>,
-        },
-        {
-          key: 'racks',
-          icon: <DatabaseOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/racks">机柜管理</Link>,
-        },
-        {
-          key: 'visualization-3d',
-          icon: <CodepenOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/visualization-3d">3D机柜可视化</Link>,
-        },
-        {
-          key: 'floor-plan',
-          icon: <LayoutOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/floor-plan">机房平面图</Link>,
-        },
-      ],
-    },
-    {
+        ...(hasPermission('room:view') ? [{ key: 'rooms', icon: <HomeOutlined style={{ fontSize: '16px' }} />, label: <Link to="/rooms">机房管理</Link> }] : []),
+        ...(hasPermission('rack:view') ? [{ key: 'racks', icon: <DatabaseOutlined style={{ fontSize: '16px' }} />, label: <Link to="/racks">机柜管理</Link> }] : []),
+        ...(hasPermission('rack:3d') ? [{ key: 'visualization-3d', icon: <CodepenOutlined style={{ fontSize: '16px' }} />, label: <Link to="/visualization-3d">3D机柜可视化</Link> }] : []),
+        ...(hasPermission('floorplan') ? [{ key: 'floor-plan', icon: <LayoutOutlined style={{ fontSize: '16px' }} />, label: <Link to="/floor-plan">机房平面图</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+    ...(hasPermission('device:view') || hasPermission('idle:view') || hasPermission('field:page') || hasPermission('port:view') || hasPermission('cable:view') ? [{
       key: 'asset-management',
       icon: <BuildOutlined style={{ fontSize: '18px' }} />,
       label: '资产管理',
       children: [
-        {
-          key: 'devices',
-          icon: <CloudServerOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/devices">设备管理</Link>,
-        },
-        {
-          key: 'idle-devices',
-          icon: <CloudServerOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/idle-devices">空闲设备</Link>,
-        },
-        {
-          key: 'fields',
-          icon: <DatabaseOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/fields">字段管理</Link>,
-        },
-        {
-          key: 'ports',
-          icon: <PartitionOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/ports">端口管理</Link>,
-        },
-        {
-          key: 'cables',
-          icon: <ApiOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/cables">接线管理</Link>,
-        },
-      ],
-    },
-    {
+        ...(hasPermission('device:view') ? [{ key: 'devices', icon: <CloudServerOutlined style={{ fontSize: '16px' }} />, label: <Link to="/devices">设备管理</Link> }] : []),
+        ...(hasPermission('idle:view') ? [{ key: 'idle-devices', icon: <CloudServerOutlined style={{ fontSize: '16px' }} />, label: <Link to="/idle-devices">空闲设备</Link> }] : []),
+        ...(hasPermission('field:page') ? [{ key: 'fields', icon: <DatabaseOutlined style={{ fontSize: '16px' }} />, label: <Link to="/fields">字段管理</Link> }] : []),
+        ...(hasPermission('port:view') ? [{ key: 'ports', icon: <PartitionOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ports">端口管理</Link> }] : []),
+        ...(hasPermission('cable:view') ? [{ key: 'cables', icon: <ApiOutlined style={{ fontSize: '16px' }} />, label: <Link to="/cables">接线管理</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+    ...(hasPermission('consumable:view') || hasPermission('consumable:stats') || hasPermission('consumable:category') || hasPermission('consumable:log') ? [{
       key: 'consumables-management',
       icon: <ShoppingCartOutlined style={{ fontSize: '18px' }} />,
       label: '耗材管理',
       children: [
-        {
-          key: 'consumables-stats',
-          icon: <BarChartOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/consumables-stats">耗材统计</Link>,
-        },
-        {
-          key: 'consumables',
-          icon: <DatabaseOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/consumables">耗材列表</Link>,
-        },
-        {
-          key: 'consumables-categories',
-          icon: <ImportOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/consumables-categories">分类管理</Link>,
-        },
-        {
-          key: 'consumables-logs',
-          icon: <FileTextOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/consumables-logs">操作日志</Link>,
-        },
-      ],
-    },
-    {
+        ...(hasPermission('consumable:stats') ? [{ key: 'consumables-stats', icon: <BarChartOutlined style={{ fontSize: '16px' }} />, label: <Link to="/consumables-stats">耗材统计</Link> }] : []),
+        ...(hasPermission('consumable:view') ? [{ key: 'consumables', icon: <DatabaseOutlined style={{ fontSize: '16px' }} />, label: <Link to="/consumables">耗材列表</Link> }] : []),
+        ...(hasPermission('consumable:category') ? [{ key: 'consumables-categories', icon: <ImportOutlined style={{ fontSize: '16px' }} />, label: <Link to="/consumables-categories">分类管理</Link> }] : []),
+        ...(hasPermission('consumable:log') ? [{ key: 'consumables-logs', icon: <FileTextOutlined style={{ fontSize: '16px' }} />, label: <Link to="/consumables-logs">操作日志</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+    ...(hasPermission('ticket:view') || hasPermission('ticket:category') || hasPermission('ticket:stats') ? [{
       key: 'ticket-management',
       icon: <ToolOutlined style={{ fontSize: '18px' }} />,
       label: '工单管理',
       children: [
-        {
-          key: 'tickets',
-          icon: <ScheduleOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/tickets">工单列表</Link>,
-        },
-        {
-          key: 'ticket-categories',
-          icon: <InboxOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/ticket-categories">故障分类</Link>,
-        },
-        {
-          key: 'ticket-statistics',
-          icon: <BarChartOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/ticket-statistics">统计报表</Link>,
-        },
-      ],
-    },
-    {
+        ...(hasPermission('ticket:view') ? [{ key: 'tickets', icon: <ScheduleOutlined style={{ fontSize: '16px' }} />, label: <Link to="/tickets">工单列表</Link> }] : []),
+        ...(hasPermission('ticket:category') ? [{ key: 'ticket-categories', icon: <InboxOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ticket-categories">故障分类</Link> }] : []),
+        ...(hasPermission('ticket:stats') ? [{ key: 'ticket-statistics', icon: <BarChartOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ticket-statistics">统计报表</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+    ...(hasPermission('inventory:plan') || hasPermission('inventory:pending') ? [{
       key: 'inventory-management',
       icon: <InboxOutlined style={{ fontSize: '18px' }} />,
       label: '资产盘点',
       children: [
-        {
-          key: 'inventory',
-          icon: <InboxOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/inventory">盘点计划</Link>,
-        },
-        {
-          key: 'pending-devices',
-          icon: <CloudUploadOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/pending-devices">盘盈设备</Link>,
-        },
-      ],
-    },
-    {
+        ...(hasPermission('inventory:plan') ? [{ key: 'inventory', icon: <InboxOutlined style={{ fontSize: '16px' }} />, label: <Link to="/inventory">盘点计划</Link> }] : []),
+        ...(hasPermission('inventory:pending') ? [{ key: 'pending-devices', icon: <CloudUploadOutlined style={{ fontSize: '16px' }} />, label: <Link to="/pending-devices">盘盈设备</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+    // 网络拓扑菜单项已移除（功能合并到接线管理中的拓扑弹窗）
+    ...(hasPermission('user:view') || hasPermission('role:view') || hasPermission('settings:view') || hasPermission('backup:view') || hasPermission('log:view') ? [{
       key: 'system-management',
       icon: <UserOutlined style={{ fontSize: '18px' }} />,
       label: '系统管理',
       children: [
-        {
-          key: 'users',
-          icon: <UserOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/users">用户管理</Link>,
-        },
-        {
-          key: 'system-settings',
-          icon: <SettingOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/settings">系统设置</Link>,
-        },
-        {
-          key: 'backup',
-          icon: <DatabaseOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/backup">数据备份</Link>,
-        },
-        {
-          key: 'operation-logs',
-          icon: <AuditOutlined style={{ fontSize: '16px' }} />,
-          label: <Link to="/operation-logs">操作日志</Link>,
-        },
-      ],
-    },
-  ];
+        ...(hasPermission('user:view') ? [{ key: 'users', icon: <UserOutlined style={{ fontSize: '16px' }} />, label: <Link to="/users">用户管理</Link> }] : []),
+        ...(hasPermission('role:view') ? [{ key: 'roles', icon: <SafetyOutlined style={{ fontSize: '16px' }} />, label: <Link to="/roles">角色管理</Link> }] : []),
+        ...(hasPermission('settings:view') ? [{ key: 'system-settings', icon: <SettingOutlined style={{ fontSize: '16px' }} />, label: <Link to="/settings">系统设置</Link> }] : []),
+        ...(hasPermission('backup:view') ? [{ key: 'backup', icon: <DatabaseOutlined style={{ fontSize: '16px' }} />, label: <Link to="/backup">数据备份</Link> }] : []),
+        ...(hasPermission('log:view') ? [{ key: 'operation-logs', icon: <AuditOutlined style={{ fontSize: '16px' }} />, label: <Link to="/operation-logs">操作日志</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+  ].filter(Boolean), [hasPermission]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -637,6 +553,7 @@ const routeConfig = [
   { path: '/consumables-stats', component: ConsumableStatistics },
   { path: '/consumables-logs', component: ConsumableLogs },
   { path: '/users', component: UserManagement },
+  { path: '/roles', component: RoleManagement },
   { path: '/tickets', component: TicketManagement },
   { path: '/ticket-categories', component: TicketCategoryManagement },
   { path: '/ticket-statistics', component: TicketStatistics },

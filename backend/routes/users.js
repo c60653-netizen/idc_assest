@@ -7,6 +7,7 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const UserRole = require('../models/UserRole');
 const { authMiddleware } = require('../middleware/auth');
+const requirePermission = require('../middleware/requirePermission');
 const { SALT_ROUNDS, PASSWORD_MIN_LENGTH, FILE_UPLOAD, PAGINATION } = require('../config');
 const { logUserOperation } = require('../utils/operationLogger');
 
@@ -44,7 +45,7 @@ const getUserRoleIds = async userId => {
 
 const { Op } = require('sequelize');
 
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requirePermission('user:view'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -120,7 +121,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/all', authMiddleware, async (req, res) => {
+router.get('/all', authMiddleware, requirePermission('user:view'), async (req, res) => {
   try {
     const users = await User.findAll({
       where: { status: 'active' },
@@ -141,7 +142,7 @@ router.get('/all', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/:userId', authMiddleware, async (req, res) => {
+router.get('/:userId', authMiddleware, requirePermission('user:view'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId, {
       attributes: { exclude: ['password'] },
@@ -183,7 +184,7 @@ router.get('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, requirePermission('user:create'), async (req, res) => {
   try {
     const { username, password, email, phone, realName, roleIds, status, remark } = req.body;
 
@@ -231,22 +232,27 @@ router.post('/', authMiddleware, async (req, res) => {
             .join('、')
         : '未分配角色';
 
-    await logUserOperation(
-      'create',
-      `创建用户【${username}】（姓名：${realName || '未填写'}，邮箱：${email || '未填写'}，角色：${roleNames}）`,
-      {
-        targetId: user.userId,
-        targetName: username,
-        afterState: {
-          username: user.username,
-          email: user.email,
-          realName: user.realName,
-          status: user.status,
-        },
-        req,
-        metadata: { roleIds, roleNames },
-      }
-    );
+    // 记录操作日志（非关键操作，失败不影响用户创建结果）
+    try {
+      await logUserOperation(
+        'create',
+        `创建用户【${username}】（姓名：${realName || '未填写'}，邮箱：${email || '未填写'}，角色：${roleNames}）`,
+        {
+          targetId: user.userId,
+          targetName: username,
+          afterState: {
+            username: user.username,
+            email: user.email,
+            realName: user.realName,
+            status: user.status,
+          },
+          req,
+          metadata: { roleIds, roleNames },
+        }
+      );
+    } catch (logError) {
+      logger.error('记录用户创建操作日志失败', { error: logError.message });
+    }
 
     res.status(201).json({
       success: true,
@@ -275,7 +281,7 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/:userId', authMiddleware, async (req, res) => {
+router.put('/:userId', authMiddleware, requirePermission('user:edit'), async (req, res) => {
   try {
     const { username, email, phone, realName, roleIds, status, remark, newPassword } = req.body;
     const user = await User.findByPk(req.params.userId);
@@ -361,14 +367,19 @@ router.put('/:userId', authMiddleware, async (req, res) => {
 
     if (permissionChanged) {
       const roleChangeDesc = `变更用户【${updatedUser.username}】的角色：${oldRoleNames.join('、') || '无'} → ${newRoleNames.join('、') || '无'}`;
-      await logUserOperation('permission_change', roleChangeDesc, {
-        targetId: updatedUser.userId,
-        targetName: updatedUser.username,
-        beforeState: { ...beforeState, roleIds: oldRoleIds, roleNames: oldRoleNames },
-        afterState: { ...beforeState, roleIds, roleNames: newRoleNames },
-        req,
-        metadata: { oldRoleIds, newRoleIds: roleIds, oldRoleNames, newRoleNames },
-      });
+      // 记录操作日志（非关键操作，失败不影响用户更新结果）
+      try {
+        await logUserOperation('permission_change', roleChangeDesc, {
+          targetId: updatedUser.userId,
+          targetName: updatedUser.username,
+          beforeState: { ...beforeState, roleIds: oldRoleIds, roleNames: oldRoleNames },
+          afterState: { ...beforeState, roleIds, roleNames: newRoleNames },
+          req,
+          metadata: { oldRoleIds, newRoleIds: roleIds, oldRoleNames, newRoleNames },
+        });
+      } catch (logError) {
+        logger.error('记录用户权限变更日志失败', { error: logError.message });
+      }
     } else {
       const afterState = {
         username: updatedUser.username,
@@ -405,14 +416,19 @@ router.put('/:userId', authMiddleware, async (req, res) => {
         ? `更新用户【${updatedUser.username}】：${changeDetails}`
         : `更新用户【${updatedUser.username}】`;
 
-      await logUserOperation('update', updateDesc, {
-        targetId: updatedUser.userId,
-        targetName: updatedUser.username,
-        beforeState,
-        afterState,
-        req,
-        metadata: { changedFields },
-      });
+      // 记录操作日志（非关键操作，失败不影响用户更新结果）
+      try {
+        await logUserOperation('update', updateDesc, {
+          targetId: updatedUser.userId,
+          targetName: updatedUser.username,
+          beforeState,
+          afterState,
+          req,
+          metadata: { changedFields },
+        });
+      } catch (logError) {
+        logger.error('记录用户更新操作日志失败', { error: logError.message });
+      }
     }
 
     res.json({
@@ -436,7 +452,7 @@ router.put('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/:userId/password', authMiddleware, async (req, res) => {
+router.put('/:userId/password', authMiddleware, requirePermission('user:password'), async (req, res) => {
   try {
     const { newPassword } = req.body;
     const user = await User.findByPk(req.params.userId);
@@ -479,7 +495,7 @@ router.put('/:userId/password', authMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/:userId', authMiddleware, async (req, res) => {
+router.delete('/:userId', authMiddleware, requirePermission('user:delete'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId);
 
@@ -510,17 +526,22 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
     await UserRole.destroy({ where: { UserId: user.userId } });
     await user.destroy();
 
-    await logUserOperation(
-      'delete',
-      `删除用户【${userName}】（姓名：${userRealName || '未填写'}，邮箱：${userEmail || '未填写'}）`,
-      {
-        targetId: req.params.userId,
-        targetName: userName,
-        beforeState,
-        req,
-        metadata: { deletedUsername: userName, realName: userRealName, email: userEmail },
-      }
-    );
+    // 记录操作日志（非关键操作，失败不影响用户删除结果）
+    try {
+      await logUserOperation(
+        'delete',
+        `删除用户【${userName}】（姓名：${userRealName || '未填写'}，邮箱：${userEmail || '未填写'}）`,
+        {
+          targetId: req.params.userId,
+          targetName: userName,
+          beforeState,
+          req,
+          metadata: { deletedUsername: userName, realName: userRealName, email: userEmail },
+        }
+      );
+    } catch (logError) {
+      logger.error('记录用户删除操作日志失败', { error: logError.message });
+    }
 
     res.json({
       success: true,
@@ -542,7 +563,7 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/:userId/avatar', authMiddleware, async (req, res) => {
+router.post('/:userId/avatar', authMiddleware, requirePermission('user:edit'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId);
 
@@ -613,7 +634,7 @@ router.post('/:userId/avatar', authMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/:userId/avatar', authMiddleware, async (req, res) => {
+router.delete('/:userId/avatar', authMiddleware, requirePermission('user:edit'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId);
 
@@ -647,7 +668,7 @@ router.delete('/:userId/avatar', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/:userId/approve', authMiddleware, async (req, res) => {
+router.put('/:userId/approve', authMiddleware, requirePermission('user:approve'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId);
 
@@ -686,7 +707,7 @@ router.put('/:userId/approve', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/:userId/reject', authMiddleware, async (req, res) => {
+router.put('/:userId/reject', authMiddleware, requirePermission('user:approve'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId);
 

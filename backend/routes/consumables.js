@@ -11,6 +11,7 @@ const ConsumableLogArchive = require('../models/ConsumableLogArchive');
 const { PAGINATION, RETRY } = require('../config');
 const { generateId } = require('../utils/idGenerator');
 const { logOperation } = require('../utils/operationLogger');
+const requirePermission = require('../middleware/requirePermission');
 
 /**
  * 记录耗材操作日志
@@ -22,7 +23,7 @@ const { logOperation } = require('../utils/operationLogger');
 const logConsumableOperation = (operationType, operationDescription, params) =>
   logOperation({ module: 'consumable', operationType, operationDescription, ...params });
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('consumable:view'), async (req, res) => {
   try {
     const {
       keyword,
@@ -81,7 +82,7 @@ router.get('/', async (req, res) => {
 
 const MAX_EXPORT_SIZE = 50000;
 
-router.get('/export', async (req, res) => {
+router.get('/export', requirePermission('consumable:import', 'consumable:export'), async (req, res) => {
   try {
     const {
       keyword,
@@ -192,7 +193,7 @@ router.get('/export', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('consumable:create'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const consumableData = {
@@ -261,7 +262,7 @@ router.post('/', async (req, res) => {
 });
 
 // 创建耗材并同时入库
-router.post('/create-with-inbound', async (req, res) => {
+router.post('/create-with-inbound', requirePermission('consumable:create'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const {
@@ -413,7 +414,7 @@ router.post('/create-with-inbound', async (req, res) => {
   }
 });
 
-router.post('/import', async (req, res) => {
+router.post('/import', requirePermission('consumable:import', 'consumable:export'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { items, operator = '系统', mode = 'create', stockMode = 'basic' } = req.body;
@@ -699,7 +700,7 @@ router.post('/import', async (req, res) => {
   }
 });
 
-router.get('/by-sn/:sn', async (req, res) => {
+router.get('/by-sn/:sn', requirePermission('consumable:view'), async (req, res) => {
   try {
     const sn = req.params.sn;
     
@@ -727,7 +728,7 @@ router.get('/by-sn/:sn', async (req, res) => {
   }
 });
 
-router.get('/categories/list', async (req, res) => {
+router.get('/categories/list', requirePermission('consumable:view'), async (req, res) => {
   try {
     const categories = await Consumable.findAll({
       attributes: ['category'],
@@ -740,7 +741,7 @@ router.get('/categories/list', async (req, res) => {
   }
 });
 
-router.get('/low-stock', async (req, res) => {
+router.get('/low-stock', requirePermission('consumable:view'), async (req, res) => {
   try {
     const consumables = await Consumable.findAll({
       where: {
@@ -762,7 +763,7 @@ router.get('/low-stock', async (req, res) => {
   }
 });
 
-router.get('/statistics/summary', async (req, res) => {
+router.get('/statistics/summary', requirePermission('consumable:view'), async (req, res) => {
   try {
     const consumables = await Consumable.findAll({
       attributes: ['currentStock', 'unitPrice', 'category', 'minStock', 'status'],
@@ -815,7 +816,7 @@ router.get('/statistics/summary', async (req, res) => {
   }
 });
 
-router.get('/inout/records', async (req, res) => {
+router.get('/inout/records', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -844,7 +845,7 @@ router.get('/inout/records', async (req, res) => {
   }
 });
 
-router.post('/quick-inout', async (req, res) => {
+router.post('/quick-inout', requirePermission('consumable:inout'), async (req, res) => {
   let attempt = 0;
 
   while (attempt < RETRY.MAX_RETRIES) {
@@ -1045,7 +1046,7 @@ router.post('/quick-inout', async (req, res) => {
   }
 });
 
-router.post('/inout', async (req, res) => {
+router.post('/inout', requirePermission('consumable:inout'), async (req, res) => {
   let attempt = 0;
 
   while (attempt < RETRY.MAX_RETRIES) {
@@ -1256,7 +1257,7 @@ router.post('/inout', async (req, res) => {
   }
 });
 
-router.post('/adjust', async (req, res) => {
+router.post('/adjust', requirePermission('consumable:inout'), async (req, res) => {
   let attempt = 0;
 
   while (attempt < RETRY.MAX_RETRIES) {
@@ -1385,7 +1386,7 @@ router.post('/adjust', async (req, res) => {
   }
 });
 
-router.get('/logs', async (req, res) => {
+router.get('/logs', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { consumableId, operationType, startDate, endDate, page = 1, pageSize = 20 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -1457,7 +1458,7 @@ router.get('/logs', async (req, res) => {
   }
 });
 
-router.get('/logs/export', async (req, res) => {
+router.get('/logs/export', requirePermission('consumable:import', 'consumable:export'), async (req, res) => {
   try {
     const { consumableId, operationType, startDate, endDate } = req.query;
 
@@ -1546,7 +1547,7 @@ router.get('/logs/export', async (req, res) => {
   }
 });
 
-router.post('/logs', async (req, res) => {
+router.post('/logs', requirePermission('consumable:create'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const {
@@ -1645,7 +1646,7 @@ router.post('/logs', async (req, res) => {
   }
 });
 
-router.post('/logs/import', async (req, res) => {
+router.post('/logs/import', requirePermission('consumable:import', 'consumable:export'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { logs: logItems, operator = '系统导入' } = req.body;
@@ -1750,7 +1751,7 @@ router.post('/logs/import', async (req, res) => {
 });
 
 // 查询归档记录列表
-router.get('/archives', async (req, res) => {
+router.get('/archives', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { keyword, page = 1, pageSize = 10 } = req.query;
     const offset = (page - 1) * pageSize;
@@ -1783,8 +1784,7 @@ router.get('/archives', async (req, res) => {
   }
 });
 
-// 查询单个归档记录详情
-router.get('/archives/:archiveId', async (req, res) => {
+router.get('/archives/:archiveId', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { archiveId } = req.params;
 
@@ -1802,7 +1802,7 @@ router.get('/archives/:archiveId', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('consumable:view'), async (req, res) => {
   try {
     const consumable = await Consumable.findByPk(req.params.id);
     if (!consumable) {
@@ -1818,7 +1818,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('consumable:edit'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const consumable = await Consumable.findByPk(req.params.id, { transaction });
@@ -1904,7 +1904,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('consumable:delete'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const consumable = await Consumable.findByPk(req.params.id, { transaction });
@@ -2046,7 +2046,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // 修改日志记录
-router.put('/logs/:id', async (req, res) => {
+router.put('/logs/:id', requirePermission('consumable:edit'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -2121,7 +2121,7 @@ router.put('/logs/:id', async (req, res) => {
 });
 
 // 删除日志记录
-router.delete('/logs/:id', async (req, res) => {
+router.delete('/logs/:id', requirePermission('consumable:delete'), async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -2170,7 +2170,7 @@ router.delete('/logs/:id', async (req, res) => {
 });
 
 // 获取日志修改历史
-router.get('/logs/:id/history', async (req, res) => {
+router.get('/logs/:id/history', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -2198,7 +2198,7 @@ router.get('/logs/:id/history', async (req, res) => {
   }
 });
 
-router.get('/devices/search', async (req, res) => {
+router.get('/devices/search', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { keyword, limit = 20 } = req.query;
 
@@ -2255,7 +2255,7 @@ router.get('/devices/search', async (req, res) => {
   }
 });
 
-router.get('/devices/by-sn/:sn', async (req, res) => {
+router.get('/devices/by-sn/:sn', requirePermission('consumable:view'), async (req, res) => {
   try {
     const { sn } = req.params;
     const Device = require('../models/Device');

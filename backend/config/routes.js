@@ -50,6 +50,10 @@ const routesConfig = [
     path: '/api/roles',
   },
   {
+    file: 'permissions.js',
+    path: '/api/permissions',
+  },
+  {
     file: 'tickets.js',
     path: '/api/tickets',
   },
