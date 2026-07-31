@@ -57,19 +57,21 @@ const permissionsData = [
   // 空闲设备
   { permissionId: 'perm_idle_page', permissionName: '空闲设备', permissionCode: 'idle:page', parentId: 'asset', type: 'menu', sort: 48, status: 'active' },
   { permissionId: 'perm_idle_shelve', permissionName: '上架设备', permissionCode: 'idle:shelve', parentId: 'idle:page', type: 'button', sort: 49, status: 'active' },
-  { permissionId: 'perm_idle_restore', permissionName: '恢复设备', permissionCode: 'idle:restore', parentId: 'idle:page', type: 'button', sort: 50, status: 'active' },
-  { permissionId: 'perm_idle_delete', permissionName: '删除空闲设备', permissionCode: 'idle:delete', parentId: 'idle:page', type: 'button', sort: 51, status: 'active' },
+  { permissionId: 'perm_idle_edit', permissionName: '编辑空闲设备', permissionCode: 'idle:edit', parentId: 'idle:page', type: 'button', sort: 50, status: 'active' },
+  { permissionId: 'perm_idle_restore', permissionName: '恢复设备', permissionCode: 'idle:restore', parentId: 'idle:page', type: 'button', sort: 51, status: 'active' },
+  { permissionId: 'perm_idle_delete', permissionName: '删除空闲设备', permissionCode: 'idle:delete', parentId: 'idle:page', type: 'button', sort: 52, status: 'active' },
   // 字段管理
-  { permissionId: 'perm_field_page', permissionName: '字段管理', permissionCode: 'field:page', parentId: 'asset', type: 'menu', sort: 52, status: 'active' },
+  { permissionId: 'perm_field_page', permissionName: '字段管理', permissionCode: 'field:page', parentId: 'asset', type: 'menu', sort: 53, status: 'active' },
   // 端口管理
-  { permissionId: 'perm_port_page', permissionName: '端口管理', permissionCode: 'port:page', parentId: 'asset', type: 'menu', sort: 53, status: 'active' },
-  { permissionId: 'perm_port_create', permissionName: '新增端口', permissionCode: 'port:create', parentId: 'port:page', type: 'button', sort: 54, status: 'active' },
-  { permissionId: 'perm_port_delete', permissionName: '删除端口', permissionCode: 'port:delete', parentId: 'port:page', type: 'button', sort: 55, status: 'active' },
+  { permissionId: 'perm_port_page', permissionName: '端口管理', permissionCode: 'port:page', parentId: 'asset', type: 'menu', sort: 54, status: 'active' },
+  { permissionId: 'perm_port_create', permissionName: '新增端口', permissionCode: 'port:create', parentId: 'port:page', type: 'button', sort: 55, status: 'active' },
+  { permissionId: 'perm_port_edit', permissionName: '编辑端口', permissionCode: 'port:edit', parentId: 'port:page', type: 'button', sort: 56, status: 'active' },
+  { permissionId: 'perm_port_delete', permissionName: '删除端口', permissionCode: 'port:delete', parentId: 'port:page', type: 'button', sort: 57, status: 'active' },
   // 接线管理
-  { permissionId: 'perm_cable_page', permissionName: '接线管理', permissionCode: 'cable:page', parentId: 'asset', type: 'menu', sort: 56, status: 'active' },
-  { permissionId: 'perm_cable_create', permissionName: '新增接线', permissionCode: 'cable:create', parentId: 'cable:page', type: 'button', sort: 57, status: 'active' },
-  { permissionId: 'perm_cable_edit', permissionName: '编辑接线', permissionCode: 'cable:edit', parentId: 'cable:page', type: 'button', sort: 58, status: 'active' },
-  { permissionId: 'perm_cable_delete', permissionName: '删除接线', permissionCode: 'cable:delete', parentId: 'cable:page', type: 'button', sort: 59, status: 'active' },
+  { permissionId: 'perm_cable_page', permissionName: '接线管理', permissionCode: 'cable:page', parentId: 'asset', type: 'menu', sort: 58, status: 'active' },
+  { permissionId: 'perm_cable_create', permissionName: '新增接线', permissionCode: 'cable:create', parentId: 'cable:page', type: 'button', sort: 59, status: 'active' },
+  { permissionId: 'perm_cable_edit', permissionName: '编辑接线', permissionCode: 'cable:edit', parentId: 'cable:page', type: 'button', sort: 60, status: 'active' },
+  { permissionId: 'perm_cable_delete', permissionName: '删除接线', permissionCode: 'cable:delete', parentId: 'cable:page', type: 'button', sort: 61, status: 'active' },
 
   // ==============================
   // 4. 耗材管理模块

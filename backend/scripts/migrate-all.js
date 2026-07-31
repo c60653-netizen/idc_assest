@@ -155,7 +155,7 @@ const migrations = [
   },
   {
     name: '权限种子数据初始化',
-    description: '初始化 113 条权限种子数据，构建三级权限体系（v2.3.5）',
+    description: '初始化 115 条权限种子数据，构建三级权限体系（v2.3.5）',
     migrate: migrateInitPermissions,
   },
   {

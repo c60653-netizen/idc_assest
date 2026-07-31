@@ -127,6 +127,7 @@ AGENTS.md
 docs/docker-deployment-plan.md
 backend/tests/*.disabled
 *.png
+*.py
 
 # ==============================================
 # Local-only references (本地参考文档)

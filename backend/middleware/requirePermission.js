@@ -72,8 +72,14 @@ const requirePermission = (...permissions) => {
         return next();
       }
 
-      // 检查是否拥有任一要求的权限码
-      const hasPermission = permissions.some((perm) => allPermissionCodes.has(perm));
+      // 通配符匹配：如 inventory:* 匹配任何以 inventory: 开头的权限
+      const hasPermission = permissions.some((perm) => {
+        if (perm.endsWith(':*')) {
+          const prefix = perm.slice(0, -1);
+          return Array.from(allPermissionCodes).some((code) => code.startsWith(prefix));
+        }
+        return allPermissionCodes.has(perm);
+      });
 
       if (!hasPermission) {
         logger.warn('权限不足', {
