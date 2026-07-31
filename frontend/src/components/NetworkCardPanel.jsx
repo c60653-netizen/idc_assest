@@ -11,6 +11,7 @@ import {
   Badge,
   Collapse,
   Card,
+  message,
 } from 'antd';
 import {
   PlusOutlined,
@@ -64,6 +65,7 @@ function NetworkCardPanel({ deviceId, deviceName, onRefresh, refreshTrigger }) {
       setExpandedCards(initialExpanded);
     } catch (error) {
       console.error('获取网卡数据失败:', error);
+      message.error('获取网卡数据失败');
       setCards([]);
       setNetworkCards([]);
     } finally {

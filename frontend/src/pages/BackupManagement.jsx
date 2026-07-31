@@ -1258,7 +1258,6 @@ const BackupManagement = () => {
 
   const handleStopRestore = () => {
     if (eventSourceRef) {
-      console.log('用户请求停止恢复');
       setRestoreStatus('正在停止恢复...');
       eventSourceRef.close();
       setEventSourceRef(null);
@@ -1267,7 +1266,6 @@ const BackupManagement = () => {
       setTimeout(() => {
         setRestoreLoading(prev => {
           if (prev) {
-            console.log('停止恢复超时，强制重置状态');
             setRestoreVisible(false);
             Modal.warning({
               title: '停止恢复',

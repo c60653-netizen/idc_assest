@@ -123,6 +123,7 @@ const DeviceFormModal = ({
       }
     } catch (error) {
       console.error('检查U位冲突失败:', error);
+      message.error('检查U位冲突失败，已跳过位置校验');
       setPositionConflict(null);
     } finally {
       setCheckingPosition(false);

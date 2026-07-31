@@ -87,7 +87,7 @@ function ConsumableLogs() {
   const [addLoading, setAddLoading] = useState(false);
   const [addForm] = Form.useForm();
 
-  const fetchLogs = async (page = 1, pageSize = 10, currentFilters = filters) => {
+  const fetchLogs = async (page = 1, pageSize = 10, currentFilters = filters, cancelledRef = null) => {
     try {
       setLoading(true);
       const params = { page, pageSize };
@@ -108,21 +108,30 @@ function ConsumableLogs() {
       }
 
       const response = await axios.get('/api/consumables/logs', { params });
+      if (cancelledRef?.current) return;
       setLogs(response.data.logs);
+      if (cancelledRef?.current) return;
       setPagination(prev => ({ ...prev, current: page, total: response.data.total }));
     } catch (error) {
+      if (cancelledRef?.current) return;
       message.error('获取操作日志失败');
       console.error('获取操作日志失败:', error);
     } finally {
-      setLoading(false);
+      if (!cancelledRef?.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    const cancelled = { current: false };
     fetchLogs(1, pagination.pageSize, {
       ...filters,
       consumableId: debouncedConsumableId,
-    });
+    }, cancelled);
+    return () => {
+      cancelled.current = true;
+    };
   }, [debouncedConsumableId, filters.operationType, filters.dateRange]);
 
   const handleFilterChange = (key, value) => {

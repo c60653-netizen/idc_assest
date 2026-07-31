@@ -72,7 +72,7 @@ const InventoryManagement = () => {
   const [searchParamsObj, setSearchParamsObj] = useState({});
   const [form] = Form.useForm();
 
-  const fetchPlans = useCallback(async () => {
+  const fetchPlans = useCallback(async (cancelledRef = null) => {
     setLoading(true);
     try {
       const params = {
@@ -81,15 +81,20 @@ const InventoryManagement = () => {
         ...searchParamsObj,
       };
       const res = await api.get('/inventory/plans', { params });
+      if (cancelledRef?.current) return;
       setPlans(res.plans || []);
+      if (cancelledRef?.current) return;
       setPagination(prev => ({
         ...prev,
         total: res.total || 0,
       }));
     } catch (error) {
+      if (cancelledRef?.current) return;
       message.error('获取盘点计划失败');
     } finally {
-      setLoading(false);
+      if (!cancelledRef?.current) {
+        setLoading(false);
+      }
     }
   }, [pagination.current, pagination.pageSize, searchParamsObj]);
 
@@ -127,10 +132,14 @@ const InventoryManagement = () => {
   };
 
   useEffect(() => {
-    fetchPlans();
+    const cancelled = { current: false };
+    fetchPlans(cancelled);
     fetchStats();
     fetchRooms();
     fetchRacks();
+    return () => {
+      cancelled.current = true;
+    };
   }, [fetchPlans]);
 
   useEffect(() => {

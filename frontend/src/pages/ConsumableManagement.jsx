@@ -2408,7 +2408,7 @@ function ConsumableManagement() {
                               >
                                 {inboundSnList.map((sn, index) => (
                                   <Tag
-                                    key={index}
+                                    key={sn}
                                     closable
                                     onClose={() => {
                                       const newList = inboundSnList.filter((_, i) => i !== index);

@@ -29,6 +29,7 @@ function PortManagementPanel({ deviceId, deviceName, onRefresh }) {
       setPorts(response.data || []);
     } catch (error) {
       console.error('获取端口列表失败:', error);
+      import('antd').then(({ message }) => message.error('获取端口列表失败'));
     } finally {
       setLoading(false);
     }

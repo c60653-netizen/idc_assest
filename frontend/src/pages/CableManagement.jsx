@@ -18,7 +18,6 @@ import {
   Upload,
   Progress,
   Checkbox,
-  Statistic,
   Row,
   Col,
   Badge,
@@ -42,10 +41,7 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   DisconnectOutlined,
-  LinkOutlined,
-  FilterOutlined,
   ClearOutlined,
-  MoreOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
@@ -258,9 +254,6 @@ function CableManagement() {
         const t = d.type || 'undefined';
         typeCount[t] = (typeCount[t] || 0) + 1;
       });
-      console.log('[CableManagement] 设备类型统计:', typeCount);
-      console.log('[CableManagement] All devices:', allDevices.length);
-      console.log('[CableManagement] Switch devices (from API):', switchDevices.length);
 
       setDevices(allDevices);
       setSwitchDevices(switchDevices);

@@ -40,13 +40,11 @@ import {
   DownloadOutlined,
   UploadOutlined as UploadIcon,
   AppstoreOutlined,
-  FilterOutlined,
   ClearOutlined,
   CloudServerOutlined,
   ApiOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  DisconnectOutlined,
   UpOutlined,
   DownOutlined,
   TagOutlined,
@@ -840,7 +838,6 @@ function PortManagement() {
   };
 
   const handleFileUpload = (file, onSuccess) => {
-    console.log('handleFileUpload 被调用', file.name, file.size);
     const reader = new FileReader();
     reader.onload = async e => {
       try {
@@ -946,13 +943,6 @@ function PortManagement() {
         // 验证并处理数据
         // 对于服务器设备，跳过网卡存在性验证，因为网卡还没有被导入
         const validatedResult = await validateImportData(parsedData, importDeviceType === 'server');
-        console.log('文件解析结果:', {
-          总行数: parsedData.length,
-          有效数据: validatedResult.validData.length,
-          错误数据: validatedResult.errors.length,
-          第一行数据: parsedData[0],
-          网卡数据行数: networkCardData.length,
-        });
         
         setImportPreview(validatedResult.validData);
         setImportErrors(validatedResult.errors);
@@ -1142,7 +1132,6 @@ function PortManagement() {
     setImporting(true);
     setImportProgress({ current: 0, total: importPreview.length });
 
-    let progressInterval;
     let currentProgress = 0;
 
     try {
@@ -1154,7 +1143,6 @@ function PortManagement() {
         const networkCardData = JSON.parse(networkCardDataStr);
         if (networkCardData.length > 0) {
           // 先导入网卡数据
-          console.log('开始导入网卡数据:', networkCardData.length, '条');
           
           // 生成网卡ID
           const networkCardsData = networkCardData.map((card, index) => ({
@@ -1174,7 +1162,6 @@ function PortManagement() {
           });
           
           networkCardImportResult = nicResponse;
-          console.log('网卡导入结果:', nicResponse);
           
           // 重新获取设备列表，确保包含最新数据
           await fetchDevices();
@@ -1203,7 +1190,7 @@ function PortManagement() {
         description: row['描述'],
       }));
 
-      progressInterval = setInterval(() => {
+      const importProgressInterval = setInterval(() => {
         currentProgress = Math.min(currentProgress + Math.random() * 15, 85);
         setImportProgress(prev => ({
           ...prev,
@@ -1218,7 +1205,7 @@ function PortManagement() {
       });
       const { total, success, failed, skipped = 0, updated = 0, errors } = response;
 
-      clearInterval(progressInterval);
+      clearInterval(importProgressInterval);
       setImportProgress({ current: importPreview.length, total: importPreview.length });
 
       let msgContent = '';
@@ -1258,11 +1245,9 @@ function PortManagement() {
       setImportModalVisible(false);
       setImportPreview([]);
     } catch (error) {
-      clearInterval(progressInterval);
       console.error('批量导入失败:', error);
       message.error('批量导入失败，请检查数据格式');
     } finally {
-      clearInterval(progressInterval);
       setImporting(false);
       // 确保清除保存的网卡数据
       sessionStorage.removeItem('networkCardImportData');

@@ -419,6 +419,7 @@ const AutoBackupSettings = () => {
       }
     } catch (error) {
       console.error('获取自动备份状态失败:', error);
+      message.error('获取自动备份状态失败');
     } finally {
       setLoading(false);
       isFetching.current = false;

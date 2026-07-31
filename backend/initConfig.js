@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const logger = require('./utils/logger').module('InitConfig');
 
 const ENV_FILE_PATH = path.join(__dirname, '.env');
 
@@ -71,7 +72,7 @@ function ensureJwtSecret() {
   const currentSecret = process.env.JWT_SECRET;
 
   if (currentSecret && currentSecret.length >= 32) {
-    console.log('✓ JWT_SECRET 已配置');
+    logger.info('✓ JWT_SECRET 已配置');
     return currentSecret;
   }
 
@@ -84,14 +85,14 @@ function ensureJwtSecret() {
   }
 
   const newSecret = generateSecret(64);
-  console.log('⚠️  JWT_SECRET 未配置或长度不足，正在自动生成...');
+  logger.warn('⚠️  JWT_SECRET 未配置或长度不足，正在自动生成...');
 
   try {
     if (fs.existsSync(ENV_FILE_PATH)) {
       const originalContent = fs.readFileSync(ENV_FILE_PATH, 'utf-8');
       const updatedContent = stringifyEnvContent({ JWT_SECRET: newSecret }, originalContent);
       fs.writeFileSync(ENV_FILE_PATH, updatedContent, 'utf-8');
-      console.log('✓ JWT_SECRET 已自动生成并保存到 .env 文件');
+      logger.info('✓ JWT_SECRET 已自动生成并保存到 .env 文件');
     } else {
       const defaultContent = `# IDC设备管理系统 - 环境配置
 # 自动生成时间: ${new Date().toISOString()}
@@ -99,14 +100,14 @@ function ensureJwtSecret() {
 JWT_SECRET=${newSecret}
 `;
       fs.writeFileSync(ENV_FILE_PATH, defaultContent, 'utf-8');
-      console.log('✓ JWT_SECRET 已自动生成并创建 .env 文件');
+      logger.info('✓ JWT_SECRET 已自动生成并创建 .env 文件');
     }
 
     process.env.JWT_SECRET = newSecret;
     return newSecret;
   } catch (err) {
-    console.warn('⚠️  无法保存 JWT_SECRET 到 .env 文件，使用临时密钥（重启后失效）');
-    console.warn('   错误信息:', err.message);
+    logger.warn('⚠️  无法保存 JWT_SECRET 到 .env 文件，使用临时密钥（重启后失效）');
+    logger.warn('   错误信息:', err.message);
     process.env.JWT_SECRET = newSecret;
     return newSecret;
   }

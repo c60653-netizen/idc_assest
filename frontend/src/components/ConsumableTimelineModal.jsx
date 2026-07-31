@@ -13,6 +13,7 @@ import {
   Empty,
   Tooltip,
   Badge,
+  message,
 } from 'antd';
 import {
   ClockCircleOutlined,
@@ -281,6 +282,7 @@ const ConsumableTimelineModal = ({ visible, consumable, onClose }) => {
       });
     } catch (error) {
       console.error('获取耗材操作记录失败:', error);
+      message.error('获取耗材操作记录失败');
     } finally {
       setLoading(false);
     }

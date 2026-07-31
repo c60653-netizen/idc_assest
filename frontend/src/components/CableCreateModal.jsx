@@ -23,11 +23,9 @@ const CableCreateModal = ({ visible, onClose, onSuccess, sourceDevice }) => {
       if (keyword && keyword.trim()) {
         params.keyword = keyword.trim();
       }
-      console.log('[CableCreateModal] Fetching devices with params:', params);
       const response = await axios.get('/api/devices', { params });
-      console.log('[CableCreateModal] API response:', response.data);
       const deviceList = response.data.devices || [];
-      console.log('[CableCreateModal] Device list:', deviceList.length, 'devices');
+
       setDevices(deviceList);
       devicesRef.current = deviceList;
       return deviceList;
@@ -49,7 +47,6 @@ const CableCreateModal = ({ visible, onClose, onSuccess, sourceDevice }) => {
 
   useEffect(() => {
     if (visible) {
-      console.log('[CableCreateModal] Modal opened, sourceDevice:', sourceDevice);
       form.resetFields();
       setSourcePorts([]);
       setTargetPorts([]);
@@ -57,14 +54,10 @@ const CableCreateModal = ({ visible, onClose, onSuccess, sourceDevice }) => {
       devicesRef.current = [];
 
       fetchDevices().then(deviceList => {
-        console.log('[CableCreateModal] Devices fetched:', deviceList.length);
         const sourceDeviceId = sourceDevice?.deviceId || sourceDevice?.id;
-        console.log('[CableCreateModal] sourceDeviceId:', sourceDeviceId);
         if (sourceDeviceId && deviceList.length > 0) {
           const deviceExists = deviceList.some(d => d.deviceId === sourceDeviceId);
-          console.log('[CableCreateModal] Device exists in list:', deviceExists);
           if (deviceExists) {
-            console.log('[CableCreateModal] Setting form value:', sourceDeviceId);
             form.setFieldsValue({
               sourceDeviceId: sourceDeviceId,
             });

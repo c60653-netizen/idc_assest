@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Badge, Space, Typography, Spin, Empty, Button, Tooltip, Tag, Modal } from 'antd';
+import { Badge, Space, Typography, Spin, Empty, Button, Tooltip, Tag, Modal, message } from 'antd';
 import {
   CloudServerOutlined,
   PlusOutlined,
@@ -52,6 +52,7 @@ const ServerBackplanePanel = ({
       setCards(cardsData);
     } catch (error) {
       console.error('获取网卡数据失败:', error);
+      message.error('获取网卡数据失败');
       setCards([]);
     } finally {
       setLoading(false);

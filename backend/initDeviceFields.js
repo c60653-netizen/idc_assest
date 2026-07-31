@@ -1,5 +1,6 @@
 const DeviceField = require('./models/DeviceField');
 const { sequelize } = require('./db');
+const logger = require('./utils/logger').module('InitDeviceFields');
 
 // 默认设备字段配置
 // 系统字段（isSystem: true）是核心字段，不可删除
@@ -158,7 +159,7 @@ const defaultDeviceFields = [
 // 初始化设备字段
 async function initDeviceFields() {
   try {
-    console.log('开始初始化设备字段配置...');
+    logger.info('开始初始化设备字段配置...');
     // 注意：数据库连接和表结构同步已在 server.js 中完成，这里直接初始化数据
 
     // 批量创建默认字段（只创建不存在的字段，保留用户自定义配置）
@@ -171,7 +172,7 @@ async function initDeviceFields() {
       if (!existingField) {
         // 只创建新字段，不更新已存在的字段
         await DeviceField.create(field);
-        console.log(`创建字段: ${field.displayName}`);
+        logger.info(`创建字段: ${field.displayName}`);
       } else {
         // 如果字段已存在但缺少 options，则补充 options
         // 确保 options 是数组（数据库 JSON 类型可能返回字符串）
@@ -193,10 +194,10 @@ async function initDeviceFields() {
           (!existingOptions || existingOptions.length === 0)
         ) {
           await existingField.update({ options: field.options });
-          console.log(`系统字段 options 为空，已重置为默认值: ${field.displayName}`);
+          logger.warn(`系统字段 options 为空，已重置为默认值: ${field.displayName}`);
         } else if (field.options && !existingOptions) {
           await existingField.update({ options: field.options });
-          console.log(`更新字段 options: ${field.displayName}`);
+          logger.info(`更新字段 options: ${field.displayName}`);
         } else if (field.options && Array.isArray(existingOptions)) {
           // 如果系统字段已有 options，检查是否缺少默认选项，补充缺失的选项
           const existingValues = existingOptions.map(o => o.value);
@@ -205,21 +206,21 @@ async function initDeviceFields() {
           if (missingOptions.length > 0) {
             const updatedOptions = [...existingOptions, ...missingOptions];
             await existingField.update({ options: updatedOptions });
-            console.log(
+            logger.info(
               `补充缺失的 options: ${field.displayName}，新增: ${missingOptions.map(o => o.label).join(', ')}`
             );
           } else {
-            console.log(`跳过已存在字段: ${field.displayName}`);
+            logger.info(`跳过已存在字段: ${field.displayName}`);
           }
         } else {
-          console.log(`跳过已存在字段: ${field.displayName}`);
+          logger.info(`跳过已存在字段: ${field.displayName}`);
         }
       }
     }
 
-    console.log('设备字段配置初始化完成');
+    logger.info('设备字段配置初始化完成');
   } catch (error) {
-    console.error('设备字段配置初始化失败:', error);
+    logger.error('设备字段配置初始化失败:', error);
   }
 }
 

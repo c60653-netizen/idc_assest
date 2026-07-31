@@ -1,5 +1,6 @@
 const TicketField = require('./models/TicketField');
 const { sequelize } = require('./db');
+const logger = require('./utils/logger').module('InitTicketFields');
 
 const defaultTicketFields = [
   {
@@ -136,12 +137,12 @@ async function initializeTicketFields() {
     const count = await TicketField.count();
     if (count === 0) {
       await TicketField.bulkCreate(defaultTicketFields);
-      console.log('工单字段初始化完成');
+      logger.info('工单字段初始化完成');
     } else {
-      console.log('工单字段已存在，跳过初始化');
+      logger.info('工单字段已存在，跳过初始化');
     }
   } catch (error) {
-    console.error('工单字段初始化失败:', error);
+    logger.error('工单字段初始化失败:', error);
   }
 }
 

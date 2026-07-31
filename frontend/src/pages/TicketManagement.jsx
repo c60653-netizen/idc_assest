@@ -14,9 +14,7 @@ import {
   Dropdown,
   Menu,
   Tabs,
-  Timeline,
   Descriptions,
-  Checkbox,
   Popover,
   InputNumber,
   Switch,
@@ -30,16 +28,10 @@ import {
   SearchOutlined,
   EyeOutlined,
   MoreOutlined,
-  UserOutlined,
   ToolOutlined,
   CheckCircleOutlined,
-  SyncOutlined,
   ClockCircleOutlined,
-  CloseCircleOutlined,
-  SettingOutlined,
   CloudServerOutlined,
-  DatabaseOutlined,
-  EnvironmentOutlined,
   TagOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
@@ -285,7 +277,7 @@ function TicketManagement() {
   const [deviceFields, setDeviceFields] = useState([]);
 
   const fetchTickets = useCallback(
-    async (page = 1, pageSize = 10, filters = {}) => {
+    async (page = 1, pageSize = 10, filters = {}, cancelledRef = null) => {
       try {
         setLoading(true);
         const params = {
@@ -296,6 +288,7 @@ function TicketManagement() {
         };
 
         const response = await axios.get('/api/tickets', { params });
+        if (cancelledRef?.current) return;
         const { tickets: ticketList, total } = response.data;
 
         const processedTickets = ticketList.map(ticket => {
@@ -308,13 +301,17 @@ function TicketManagement() {
           return processed;
         });
 
+        if (cancelledRef?.current) return;
         setTickets(processedTickets);
         setPagination(prev => ({ ...prev, current: page, pageSize, total }));
       } catch (error) {
+        if (cancelledRef?.current) return;
         message.error('获取工单列表失败');
         console.error('获取工单列表失败:', error);
       } finally {
-        setLoading(false);
+        if (!cancelledRef?.current) {
+          setLoading(false);
+        }
       }
     },
     [searchFilters]
@@ -418,13 +415,17 @@ function TicketManagement() {
   }, []);
 
   useEffect(() => {
-    fetchTickets();
+    const cancelled = { current: false };
+    fetchTickets(1, 10, {}, cancelled);
     fetchDevices();
     fetchTicketFields().then(() => {
-      // 在 ticketFields 加载完成后再加载分类数据
+      if (cancelled.current) return;
       fetchCategories();
     });
     fetchDeviceFields();
+    return () => {
+      cancelled.current = true;
+    };
   }, [fetchTickets, fetchDevices, fetchTicketFields, fetchCategories, fetchDeviceFields]);
 
   // 处理从设备详情页跳转过来创建工单的情况
@@ -454,9 +455,13 @@ function TicketManagement() {
 
   // 当 searchFilters 变化时，重新获取工单列表
   useEffect(() => {
+    const cancelled = { current: false };
     if (urlDeviceId && urlView === 'true' && searchFilters.deviceId === urlDeviceId) {
-      fetchTickets(1, pagination.pageSize);
+      fetchTickets(1, pagination.pageSize, {}, cancelled);
     }
+    return () => {
+      cancelled.current = true;
+    };
   }, [searchFilters, urlDeviceId, urlView]);
 
   const renderFormItem = useCallback(

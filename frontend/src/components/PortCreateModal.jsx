@@ -251,6 +251,7 @@ function PortCreateModal({
       setNicList(response.data || []);
     } catch (error) {
       console.error('获取网卡列表失败:', error);
+      message.error('获取网卡列表失败');
       setNicList([]);
     }
   };

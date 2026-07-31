@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, Select, Button } from 'antd';
+import { Modal, Form, Select, Button, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { designTokens } from '../../config/theme';
 
@@ -30,6 +30,7 @@ const BatchStatusModal = ({ visible, selectedCount, loading, onSubmit, onCancel 
     } catch (error) {
       if (!error.errorFields) {
         console.error('批量状态变更失败:', error);
+        message.error('批量状态变更失败');
       }
     }
   };

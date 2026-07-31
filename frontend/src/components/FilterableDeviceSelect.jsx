@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Input, Button, Spin, Empty, Row, Col } from 'antd';
+import { Select, Input, Button, Spin, Empty, Row, Col, message } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import api from '../api';
 
@@ -41,6 +41,7 @@ const FilterableDeviceSelect = ({
         setRooms(Array.isArray(roomsData) ? roomsData : []);
       } catch (error) {
         console.error('加载机房列表失败:', error);
+        message.error('加载机房列表失败');
         setRooms([]);
       } finally {
         setLoadingRooms(false);
@@ -64,6 +65,7 @@ const FilterableDeviceSelect = ({
         setRacks(Array.isArray(racksData) ? racksData : []);
       } catch (error) {
         console.error('加载机柜列表失败:', error);
+        message.error('加载机柜列表失败');
         setRacks([]);
       } finally {
         setLoadingRacks(false);
@@ -99,6 +101,7 @@ const FilterableDeviceSelect = ({
       } catch (error) {
         console.error('加载设备列表失败:', error);
         if (!cancelled) {
+          message.error('加载设备列表失败');
           setDevices([]);
           if (onDeviceListChange) {
             onDeviceListChange([]);

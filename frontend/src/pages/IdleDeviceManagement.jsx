@@ -71,7 +71,7 @@ const IdleDeviceManagement = () => {
     return acc;
   }, {});
 
-  const fetchIdleDevices = useCallback(async () => {
+  const fetchIdleDevices = useCallback(async (cancelledRef = null) => {
     setLoading(true);
     try {
       const params = {
@@ -81,15 +81,20 @@ const IdleDeviceManagement = () => {
         sourceType: sourceTypeFilter,
       };
       const response = await axios.get('/api/idle-devices', { params });
+      if (cancelledRef?.current) return;
       setIdleDevices(response.data.idleDevices || []);
+      if (cancelledRef?.current) return;
       setPagination(prev => ({
         ...prev,
         total: response.data.total || 0,
       }));
     } catch (error) {
+      if (cancelledRef?.current) return;
       message.error('获取空闲设备列表失败');
     } finally {
-      setLoading(false);
+      if (!cancelledRef?.current) {
+        setLoading(false);
+      }
     }
   }, [pagination.current, pagination.pageSize, searchKeyword, sourceTypeFilter]);
 
@@ -125,7 +130,11 @@ const IdleDeviceManagement = () => {
   };
 
   useEffect(() => {
-    fetchIdleDevices();
+    const cancelled = { current: false };
+    fetchIdleDevices(cancelled);
+    return () => {
+      cancelled.current = true;
+    };
   }, [fetchIdleDevices]);
 
   useEffect(() => {
@@ -211,9 +220,7 @@ const IdleDeviceManagement = () => {
     }
 
     try {
-      console.log('检查U位冲突:', { rackId, position, height, deviceId: shelvingDevice?.deviceId });
       const result = await deviceAPI.checkPosition(rackId, { position, height: height || 1 });
-      console.log('U位检查结果:', result);
       if (!result.available) {
         setShelvePositionConflict(result.reason);
       } else {

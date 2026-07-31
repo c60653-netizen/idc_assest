@@ -17,6 +17,7 @@ import {
   Collapse,
   Spin,
   Pagination,
+  message,
 } from 'antd';
 import {
   ApiOutlined,
@@ -105,6 +106,7 @@ function DeviceDetailDrawer({
       setPortsPage(1);
     } catch (error) {
       console.error('获取网卡数据失败:', error);
+      message.error('获取网卡数据失败');
       setNetworkCards([]);
     } finally {
       setNetworkCardsLoading(false);
@@ -134,6 +136,7 @@ function DeviceDetailDrawer({
         });
       } catch (error) {
         console.error('获取设备工单失败:', error);
+        message.error('获取设备工单失败');
       } finally {
         setTicketsLoading(false);
       }

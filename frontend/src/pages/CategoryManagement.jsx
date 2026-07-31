@@ -45,24 +45,33 @@ function CategoryManagement() {
   const debouncedKeyword = useDebounce(keyword, 300);
   const [status, setStatus] = useState('all');
 
-  const fetchCategories = async (page = 1, pageSize = 10) => {
+  const fetchCategories = async (page = 1, pageSize = 10, cancelledRef = null) => {
     try {
       setLoading(true);
       const response = await axios.get('/api/consumable-categories', {
         params: { page, pageSize, keyword: debouncedKeyword, status },
       });
+      if (cancelledRef?.current) return;
       setCategories(response.data.categories);
+      if (cancelledRef?.current) return;
       setPagination(prev => ({ ...prev, current: page, pageSize, total: response.data.total }));
     } catch (error) {
+      if (cancelledRef?.current) return;
       message.error('获取分类列表失败');
       console.error('获取分类列表失败:', error);
     } finally {
-      setLoading(false);
+      if (!cancelledRef?.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchCategories();
+    const cancelled = { current: false };
+    fetchCategories(1, 10, cancelled);
+    return () => {
+      cancelled.current = true;
+    };
   }, [debouncedKeyword, status]);
 
   const showModal = (category = null) => {

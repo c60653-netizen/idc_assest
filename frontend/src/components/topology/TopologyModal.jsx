@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Modal, Spin, Alert, Tooltip } from 'antd';
+import { Modal, Spin, Alert, Tooltip, message } from 'antd';
 import {
   SwapOutlined,
   CloudServerOutlined,
@@ -68,6 +68,7 @@ function TopologyModal({ visible, onClose }) {
       setSwitchDevices(response.data.devices || []);
     } catch (err) {
       console.error('获取交换机列表失败:', err);
+      message.error('获取交换机列表失败');
     }
   }, []);
 

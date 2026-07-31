@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, DatePicker, Button, Card, Divider } from 'antd';
+import { Modal, Form, DatePicker, Button, Card, Divider, message } from 'antd';
 import { SafetyCertificateOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { designTokens } from '../../config/theme';
 
@@ -23,6 +23,7 @@ const BatchWarrantyModal = ({ visible, selectedCount, loading, onSubmit, onCance
     } catch (error) {
       if (!error.errorFields) {
         console.error('批量更新维保失败:', error);
+        message.error('批量更新维保信息失败');
       }
     }
   };

@@ -4,6 +4,18 @@
 
 ---
 
+## [2.4.1] - 2026-07-21
+
+### 问题修复
+- 前端组件 新增多个组件 catch 分支的 message.error 提示（ServerBackplanePanel/BatchStatusModal/BatchWarrantyModal/DeviceFormModal/TopologyModal/AutoBackupSettings）
+- 内存泄漏 修复 CategoryManagement/ConsumableLogs/IdleDeviceManagement/InventoryManagement/TicketManagement 组件卸载后更新 state 的问题（新增 cancelledRef 模式）
+- 代码清理 移除 CableManagement/PortManagement/BackupManagement/IdleDeviceManagement 中的多余 console.log 调试输出
+- 代码清理 移除 CableManagement/PortManagement/TicketManagement 未使用的 import 引用
+- ConsumableManagement 修复 Tag 组件 key 从 index 改为 sn，消除 React key 警告
+- PortManagement 修复 clearInterval 在 importProgressInterval 上的变量作用域问题
+
+---
+
 ## [2.4.0] - 2026-07-21
 
 ### 新增功能

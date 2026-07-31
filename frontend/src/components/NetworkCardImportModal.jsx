@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Modal,
   Upload,
@@ -33,6 +33,16 @@ function NetworkCardImportModal({ visible, onClose, onSuccess }) {
   const [importPreview, setImportPreview] = useState([]);
   const [importErrors, setImportErrors] = useState([]);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const progressIntervalRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, []);
   const [importing, setImporting] = useState(false);
   const [skipExisting, setSkipExisting] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(false);
@@ -163,7 +173,6 @@ function NetworkCardImportModal({ visible, onClose, onSuccess }) {
     setImporting(true);
     setImportProgress({ current: 0, total: importPreview.length });
 
-    let progressInterval;
     let currentProgress = 0;
 
     try {
@@ -193,7 +202,8 @@ function NetworkCardImportModal({ visible, onClose, onSuccess }) {
 
       const { total, success, failed, skipped = 0, updated = 0, errors } = response;
 
-      clearInterval(progressInterval);
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
       setImportProgress({ current: importPreview.length, total: importPreview.length });
 
       let msgContent = '';
@@ -244,11 +254,15 @@ function NetworkCardImportModal({ visible, onClose, onSuccess }) {
       setImportErrors([]);
       onClose();
     } catch (error) {
-      clearInterval(progressInterval);
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
       console.error('批量导入失败:', error);
       message.error('批量导入失败，请检查数据格式');
     } finally {
-      clearInterval(progressInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
       setImporting(false);
     }
   };

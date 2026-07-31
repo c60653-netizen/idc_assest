@@ -115,13 +115,11 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
   }, []);
 
   const fetchDevicePorts = useCallback(async (deviceId, type) => {
-    console.log('fetchDevicePorts called for:', deviceId, type);
     if (!deviceId) return;
 
     try {
       const response = await axios.get(`/api/device-ports/device/${deviceId}`);
       const ports = response.data || [];
-      console.log('Fetched ports:', ports);
       if (type === 'source') {
         setSourcePorts(ports);
       } else {
@@ -139,6 +137,7 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
       setCablesData(response.data.cables || []);
     } catch (error) {
       console.error('获取接线数据失败:', error);
+      message.error('获取接线数据失败');
     }
   }, []);
 
@@ -152,6 +151,7 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
       return response.data;
     } catch (error) {
       console.error('检查端口冲突失败:', error);
+      message.error('检查端口冲突失败，已默认放行');
       return { hasConflict: false, conflicts: [] };
     }
   }, []);
@@ -167,6 +167,7 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
       return response.data;
     } catch (error) {
       console.error('检查端口兼容性失败:', error);
+      message.error('检查端口兼容性失败');
       return { compatible: false, reasons: [] };
     }
   }, []);
@@ -238,13 +239,10 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
   }, [fetchDevicePorts]);
 
   const handleSourcePortSelect = useCallback(async port => {
-    console.log('handleSourcePortSelect called with port:', port);
-
     const isAlreadySelected =
       sourcePort?.portId === port.portId || sourcePort?.portName === port.portName;
 
     if (isAlreadySelected) {
-      console.log('Deselecting source port:', port);
       setSourcePort(null);
       setConflicts([]);
       setCompatibilityWarning(null);
@@ -262,7 +260,6 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
       }
 
       setSourcePort(port);
-      console.log('Source port set to:', port);
 
       if (targetDevice) {
         await checkPortConflict(targetDevice.deviceId, port.portName);
@@ -271,13 +268,10 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
   }, [sourceDevice, targetDevice, sourcePort, checkPortConflict]);
 
   const handleTargetPortSelect = useCallback(async port => {
-    console.log('handleTargetPortSelect called with port:', port);
-
     const isAlreadySelected =
       targetPort?.portId === port.portId || targetPort?.portName === port.portName;
 
     if (isAlreadySelected) {
-      console.log('Deselecting target port:', port);
       setTargetPort(null);
       setConflicts([]);
       setCompatibilityWarning(null);
@@ -295,7 +289,6 @@ const CableWizardModal = ({ visible, onClose, onSuccess, initialSourceDevice, ed
       }
 
       setTargetPort(port);
-      console.log('Target port set to:', port);
 
       if (sourcePort) {
         const compatResult = await checkPortCompatibility(
