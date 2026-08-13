@@ -340,7 +340,21 @@ const RemoteBackupSettings = () => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      const values = await form.validateFields();
+
+      // 分步骤表单：name/protocol/enabled 在步骤 0 渲染，步骤 2 保存时这些 Form.Item 已卸载，
+      // validateFields() 不带参数只返回当前已挂载字段，会丢失跨步骤字段。
+      // 改用 getFieldsValue(true) 获取所有字段（含未渲染但保留在 store 中的）。
+      const values = form.getFieldsValue(true);
+
+      // 显式校验关键字段
+      if (!values.name) {
+        message.error('请输入目标名称');
+        return;
+      }
+      if (!values.protocol) {
+        message.error('请选择协议类型');
+        return;
+      }
 
       if (editingTarget) {
         const response = await api.put(`/backup/remote/targets/${editingTarget.id}`, values);

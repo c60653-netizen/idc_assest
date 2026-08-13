@@ -1,6 +1,6 @@
 {
   "name": "idc-backend",
-  "version": "2.4.2",
+  "version": "2.5.0",
   "description": "IDC设备管理系统后端",
   "author": "gituib",
   "license": "MIT",
@@ -29,6 +29,17 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:operation-logs": "jest tests/operationLog.model.test.js tests/operationLogger.test.js tests/operationLogs.api.test.js --runInBand"
+  },
+  "nodemonConfig": {
+    "watch": ["."],
+    "ext": "js,mjs,cjs",
+    "ignore": [
+      "config/*.json",
+      "logs/*",
+      "uploads/*",
+      "temp/*",
+      "tests/*"
+    ]
   },
   "dependencies": {
     "all": "^0.0.0",

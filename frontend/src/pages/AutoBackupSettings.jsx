@@ -22,6 +22,7 @@ import {
   Pagination,
   Empty,
   Tooltip,
+  Checkbox,
 } from 'antd';
 import {
   ClockCircleOutlined,
@@ -41,6 +42,8 @@ import {
   ReloadOutlined,
   UpOutlined,
   DownOutlined,
+  CloudOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { backupAPI } from '../api';
 import { useNavigate } from 'react-router-dom';
@@ -361,10 +364,17 @@ const AutoBackupSettings = () => {
     maxCount: 30,
     maxAgeDays: 90,
     backupType: 'full',
+    // 远端备份相关：自动备份自身开关，独立于全局 uploadAfterBackup
+    uploadToRemote: false,
+    // 选中的远端目标 ID 列表；空数组表示上传到所有已启用目标
+    remoteTargetIds: [],
   });
   const [modified, setModified] = useState(false);
   const isInitialMount = useRef(true);
   const isFetching = useRef(false);
+  // 远端备份目标列表与全局开关（用于在自动备份设置页内选择目标）
+  const [remoteTargets, setRemoteTargets] = useState([]);
+  const [remoteGlobalEnabled, setRemoteGlobalEnabled] = useState(false);
 
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -384,7 +394,26 @@ const AutoBackupSettings = () => {
     if (isInitialMount.current) {
       fetchStatus();
       fetchLogs();
+      fetchRemoteInfo();
       isInitialMount.current = false;
+    }
+  }, []);
+
+  // 加载远端备份目标列表与全局开关
+  const fetchRemoteInfo = useCallback(async () => {
+    try {
+      const [targetsRes, settingsRes] = await Promise.all([
+        backupAPI.getRemoteTargets(),
+        backupAPI.getRemoteSettings(),
+      ]);
+      if (targetsRes?.success) {
+        setRemoteTargets(targetsRes.data?.targets || []);
+      }
+      if (settingsRes?.success) {
+        setRemoteGlobalEnabled(settingsRes.data?.settings?.enabled || false);
+      }
+    } catch (error) {
+      console.error('获取远端备份信息失败:', error);
     }
   }, []);
 
@@ -414,6 +443,8 @@ const AutoBackupSettings = () => {
             maxCount: data.maxCount || 30,
             maxAgeDays: data.maxAgeDays || 90,
             backupType: data.backupType || 'full',
+            uploadToRemote: data.uploadToRemote || false,
+            remoteTargetIds: data.remoteTargetIds || [],
           }));
         }
       }
@@ -465,6 +496,8 @@ const AutoBackupSettings = () => {
         maxCount: settings.maxCount,
         maxAgeDays: settings.maxAgeDays,
         backupType: settings.backupType,
+        uploadToRemote: settings.uploadToRemote,
+        remoteTargetIds: settings.remoteTargetIds,
       });
 
       if (response?.success) {
@@ -510,6 +543,9 @@ const AutoBackupSettings = () => {
             includeFiles: settings.includeFiles,
             compress: settings.compress,
             backupType: settings.backupType,
+            // 立即执行时跟随当前自动备份页面的远端设置
+            uploadToRemote: settings.uploadToRemote,
+            remoteTargetIds: settings.remoteTargetIds,
           });
 
           if (response?.success) {
@@ -1070,6 +1106,149 @@ const AutoBackupSettings = () => {
             </Card>
           </Col>
         </Row>
+
+        {/* 远端备份设置卡片：自动备份自身的远端上传开关与目标选择 */}
+        <Card
+          title={
+            <Space>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CloudOutlined style={{ color: '#fff', fontSize: 18 }} />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600 }}>远端备份</span>
+            </Space>
+          }
+          style={{
+            borderRadius: '20px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+            marginTop: 24,
+          }}
+        >
+          {/* 全局开关未启用时提示用户去开启 */}
+          {!remoteGlobalEnabled && (
+            <Alert
+              type="warning"
+              showIcon
+              icon={<ExclamationCircleOutlined />}
+              message="远端备份全局开关未启用"
+              description={
+                <span>
+                  需要先在
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: '0 4px' }}
+                    onClick={() => navigate('/remote-backup-settings')}
+                  >
+                    远端备份配置
+                  </Button>
+                  页面启用远端备份并添加至少一个启用目标，否则下方开关不会生效。
+                </span>
+              }
+              style={{ marginBottom: 16, borderRadius: '12px' }}
+            />
+          )}
+
+          <SettingItem
+            title="备份后上传到远端"
+            description="开启后，自动备份完成时会将备份文件上传到下方选中的远端目标。独立于全局「备份后自动上传」开关。"
+          >
+            <Switch
+              checked={settings.uploadToRemote}
+              onChange={checked => {
+                setSettings({ ...settings, uploadToRemote: checked });
+                setModified(true);
+              }}
+              disabled={!settings.enabled}
+              checkedChildren="开启"
+              unCheckedChildren="关闭"
+            />
+          </SettingItem>
+
+          <SettingItem
+            title="远端存储目标"
+            description="选择备份上传到哪些远端目标。不选则上传到所有已启用目标。"
+            bordered={false}
+          >
+            <div style={{ maxWidth: 480, width: '100%' }}>
+              <Checkbox.Group
+                value={settings.remoteTargetIds}
+                onChange={checkedValues => {
+                  setSettings({ ...settings, remoteTargetIds: checkedValues });
+                  setModified(true);
+                }}
+                disabled={!settings.enabled || !settings.uploadToRemote}
+                style={{ width: '100%' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {remoteTargets.length === 0 ? (
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      暂无远端目标，请先到
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ padding: '0 4px' }}
+                        onClick={() => navigate('/remote-backup-settings')}
+                      >
+                        远端备份配置
+                      </Button>
+                      添加。
+                    </Text>
+                  ) : (
+                    remoteTargets.map(t => (
+                      <div
+                        key={t.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          background: t.enabled ? '#f9fafb' : '#f3f4f6',
+                          border: `1px solid ${t.enabled ? '#e5e7eb' : '#e5e7eb'}`,
+                          borderRadius: '10px',
+                          opacity: t.enabled ? 1 : 0.6,
+                        }}
+                      >
+                        <Checkbox value={t.id} disabled={!t.enabled} style={{ flex: 1 }}>
+                          <Space size={6}>
+                            <CloudOutlined style={{ color: '#3b82f6' }} />
+                            <span style={{ fontWeight: 600 }}>{t.name}</span>
+                            <Tag style={{ margin: 0, borderRadius: '6px' }}>
+                              {t.protocol.toUpperCase()}
+                            </Tag>
+                            {!t.enabled && <Tag color="default">未启用</Tag>}
+                          </Space>
+                        </Checkbox>
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: 12, maxWidth: 200 }}
+                          ellipsis={{ tooltip: `${t.host || t.url || ''}${t.rootPath ? ' · ' + t.rootPath : ''}` }}
+                        >
+                          {t.host || t.url || ''}
+                          {t.rootPath && ` · ${t.rootPath}`}
+                        </Text>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Checkbox.Group>
+              {settings.remoteTargetIds.length === 0 && remoteTargets.filter(t => t.enabled).length > 0 && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                  未选中任何目标，将上传到所有已启用目标。
+                </Text>
+              )}
+            </div>
+          </SettingItem>
+        </Card>
 
         <Card
           title={

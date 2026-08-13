@@ -4,6 +4,29 @@
 
 ---
 
+## [2.5.0] - 2026-07-21
+
+### 新增功能
+
+#### 远端备份增强
+- 远端备份 新增多目标远端备份管理（FTP/SFTP/WebDAV 协议目标配置）
+- 远端备份 新增备份文件一键上传至远端目标功能
+- 远端备份 新增远端目标连接测试接口
+- 远端备份 新增 getRemoteTargets / getRemoteSettings / updateRemoteSettings / uploadToRemote / testRemoteTarget API
+- BackupManagement 备份管理页面新增远端备份管理 UI（+847 行）
+- AutoBackupSettings 自动备份设置页面扩展远端备份配置（+179 行）
+
+### 问题修复
+- remoteBackup 修复 SFTP 上传未拼接 rootPath，导致文件上传到错误目录的问题
+- remoteBackup 修复 Windows 平台 path.dirname 将正斜杠当反斜杠处理的问题，改用 path.posix
+- remoteBackup 优化 WebDAV 目录创建逻辑，避免 dirname='.' 或 '/' 触发多余调用
+- RemoteBackupSettings 修复分步表单跨步骤字段丢失问题（getFieldsValue(true) 替代 validateFields）
+
+### 功能改进
+- backend package.json 新增 nodemonConfig 热重载配置（忽略 config/logs/uploads/temp/tests）
+
+---
+
 ## [2.4.2] - 2026-07-21
 
 ### 问题修复

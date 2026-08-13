@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -43,6 +43,7 @@ import {
   EyeOutlined,
   TableOutlined,
   CloseCircleOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import api, { backupAPI } from '../api';
 import CloseButton from '../components/CloseButton';
@@ -168,6 +169,12 @@ const BackupManagement = () => {
   const [restoreStatus, setRestoreStatus] = useState('');
   const [skipUserData, setSkipUserData] = useState(false);
   const [eventSourceRef, setEventSourceRef] = useState(null);
+  // 远端备份相关状态
+  const [remoteTargets, setRemoteTargets] = useState([]);
+  const [remoteSettings, setRemoteSettings] = useState({ enabled: false, uploadAfterBackup: false });
+  const [uploadRemoteVisible, setUploadRemoteVisible] = useState(false);
+  const [uploadRemoteLoading, setUploadRemoteLoading] = useState(false);
+  const [uploadRemoteFilename, setUploadRemoteFilename] = useState(null);
 
   const fetchBackups = useCallback(async () => {
     setLoading(true);
@@ -194,22 +201,78 @@ const BackupManagement = () => {
     }
   }, []);
 
+  // 获取远端备份目标与全局设置
+  const fetchRemoteInfo = useCallback(async () => {
+    try {
+      const [targetsRes, settingsRes] = await Promise.all([
+        backupAPI.getRemoteTargets(),
+        backupAPI.getRemoteSettings(),
+      ]);
+      if (targetsRes?.success) {
+        setRemoteTargets(targetsRes.data?.targets || []);
+      }
+      if (settingsRes?.success) {
+        setRemoteSettings(settingsRes.data?.settings || {});
+      }
+    } catch (error) {
+      console.error('获取远端备份信息失败:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchBackups();
     fetchBackupInfo();
-  }, [fetchBackups, fetchBackupInfo]);
+    fetchRemoteInfo();
+  }, [fetchBackups, fetchBackupInfo, fetchRemoteInfo]);
 
-  const handleCreateBackup = async () => {
+  // 已启用的远端目标列表
+  const enabledRemoteTargets = useMemo(
+    () => remoteTargets.filter(t => t.enabled),
+    [remoteTargets]
+  );
+
+  // 远端备份是否可用（全局开关开启 + 至少一个启用目标）
+  const remoteUploadAvailable = remoteSettings.enabled && enabledRemoteTargets.length > 0;
+
+  // 创建备份：uploadToRemote=true 时备份后立即上传到所有启用的远端目标
+  const handleCreateBackup = async (uploadToRemote = false) => {
     setBackupLoading(true);
     try {
       const response = await api.post('/backup', {
         description: '手动备份',
         includeFiles: true,
+        uploadToRemote,
       });
       if (response?.success) {
-        message.success('备份创建成功');
+        // 备份本身一定成功；远端上传是否成功根据 remoteUploadResults 单独判断
+        const remoteResults = response.data?.remoteUploadResults || [];
+        if (uploadToRemote && remoteResults.length > 0) {
+          const successCount = remoteResults.filter(r => r.success).length;
+          const failCount = remoteResults.length - successCount;
+          if (failCount === 0) {
+            message.success(`备份创建成功，已上传到 ${successCount} 个远端目标`);
+          } else if (successCount === 0) {
+            // 全部失败：用 error 醒目提示，附带第一个失败原因
+            const firstError = remoteResults[0]?.error || '所有目标上传失败';
+            message.error(`备份创建成功，但远端上传全部失败：${firstError}`, 8);
+            // 详细失败信息输出到控制台便于排查
+            console.error('远端上传全部失败详情：', remoteResults);
+          } else {
+            message.warning(
+              `备份创建成功，远端上传：${successCount} 成功，${failCount} 失败`,
+              8
+            );
+            console.warn('部分远端目标上传失败：', remoteResults.filter(r => !r.success));
+          }
+        } else {
+          message.success(response.message || '备份创建成功');
+        }
         fetchBackups();
         fetchBackupInfo();
+        // 若触发了远端上传，刷新远端目标状态（可能涉及上传后删本地等）
+        if (uploadToRemote) {
+          fetchRemoteInfo();
+        }
       } else {
         message.error(response.data?.message || '备份创建失败');
       }
@@ -1295,6 +1358,51 @@ const BackupManagement = () => {
     }
   };
 
+  // 打开"上传到远端"确认弹窗
+  const showUploadRemoteModal = filename => {
+    setUploadRemoteFilename(filename);
+    setUploadRemoteVisible(true);
+  };
+
+  // 确认上传备份到远端存储（不传 targetIds 表示上传到所有启用目标）
+  const confirmUploadToRemote = async () => {
+    setUploadRemoteLoading(true);
+    try {
+      const response = await backupAPI.uploadToRemote(uploadRemoteFilename);
+      if (response?.success) {
+        const results = response.data?.results || [];
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.length - successCount;
+
+        if (failCount === 0) {
+          message.success(`已成功上传到 ${successCount} 个远端目标`);
+        } else if (successCount === 0) {
+          message.error(`上传失败：${results[0]?.error || '所有目标上传失败'}`);
+        } else {
+          message.warning(`上传完成：${successCount} 成功，${failCount} 失败`);
+        }
+
+        // 若有失败目标，详细信息打印到控制台便于排查
+        if (failCount > 0) {
+          console.warn(
+            '部分远端目标上传失败：',
+            results.filter(r => !r.success)
+          );
+        }
+
+        setUploadRemoteVisible(false);
+      } else {
+        message.error(response?.message || '上传到远端失败');
+      }
+    } catch (error) {
+      message.error(
+        '上传到远端失败: ' + (error.response?.data?.message || error.message || '未知错误')
+      );
+    } finally {
+      setUploadRemoteLoading(false);
+    }
+  };
+
   const handleUpload = async options => {
     const { file, onSuccess, onError } = options;
     const formData = new FormData();
@@ -1484,7 +1592,7 @@ const BackupManagement = () => {
     {
       title: <span style={{ fontWeight: 600, color: designTokens.colors.text.primary }}>操作</span>,
       key: 'action',
-      width: 280,
+      width: 330,
       render: (_, record) => (
         <Space size={4}>
           <Tooltip title="验证备份完整性">
@@ -1492,6 +1600,7 @@ const BackupManagement = () => {
               size="small"
               icon={<SafetyOutlined />}
               onClick={() => handleValidate(record.filename)}
+              className="backup-table-btn backup-table-btn-success"
               style={{
                 ...buttonStyles.success.base,
                 padding: '4px 12px',
@@ -1511,6 +1620,7 @@ const BackupManagement = () => {
               size="small"
               icon={<DownloadOutlined />}
               onClick={() => handleDownload(record.filename)}
+              className="backup-table-btn backup-table-btn-download"
               style={{
                 ...buttonStyles.secondary.base,
                 padding: '4px 12px',
@@ -1527,6 +1637,7 @@ const BackupManagement = () => {
               size="small"
               icon={<CloudUploadOutlined />}
               onClick={() => showRestoreConfirm(record)}
+              className="backup-table-btn backup-table-btn-warning"
               style={{
                 ...buttonStyles.warning.base,
                 padding: '4px 12px',
@@ -1541,6 +1652,22 @@ const BackupManagement = () => {
               恢复
             </Button>
           </Tooltip>
+          {remoteUploadAvailable && (
+            <Tooltip title="上传到远端存储">
+              <Button
+                size="small"
+                icon={<CloudOutlined />}
+                onClick={() => showUploadRemoteModal(record.filename)}
+                className="backup-table-btn-icon backup-table-btn-remote"
+                style={{
+                  ...buttonStyles.icon.base,
+                  background: designTokens.colors.primary.gradient,
+                  color: '#fff',
+                }}
+                disabled={record.invalid}
+              />
+            </Tooltip>
+          )}
           <Popconfirm
             title="确定要删除此备份文件吗？"
             description="此操作不可撤销"
@@ -1553,6 +1680,7 @@ const BackupManagement = () => {
               <Button
                 size="small"
                 icon={<DeleteOutlined />}
+                className="backup-table-btn-icon backup-table-btn-danger"
                 style={{
                   ...buttonStyles.icon.base,
                   background: designTokens.colors.background.accent,
@@ -1751,6 +1879,356 @@ const BackupManagement = () => {
 
   return (
     <div style={containerStyle}>
+      <style>{`
+        @keyframes backupBtnGlow {
+          0%, 100% {
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35), 0 0 0 0 rgba(102, 126, 234, 0.25);
+          }
+          50% {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5), 0 0 0 8px rgba(102, 126, 234, 0);
+          }
+        }
+        @keyframes backupBtnShimmer {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(120%); }
+        }
+        .create-backup-btn {
+          position: relative;
+          overflow: hidden;
+          animation: backupBtnGlow 2.6s ease-in-out infinite;
+          isolation: isolate;
+        }
+        .create-backup-btn.ant-btn-loading {
+          animation: none;
+        }
+        .create-backup-btn.ant-btn-loading::before {
+          display: none;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .create-backup-btn,
+          .create-backup-btn::before,
+          .create-backup-btn .anticon-plus,
+          .backup-dropdown-menu .ant-dropdown-menu-item,
+          .backup-dropdown-menu .backup-menu-icon {
+            animation: none !important;
+            transition: none !important;
+          }
+        }
+        .create-backup-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+          transform: translateX(-120%);
+          pointer-events: none;
+          z-index: 0;
+        }
+        .create-backup-btn:hover::before {
+          animation: backupBtnShimmer 0.9s ease-out;
+        }
+        .create-backup-btn:hover {
+          transform: translateY(-2px) scale(1.02);
+          filter: brightness(1.06);
+          box-shadow: 0 10px 26px rgba(102, 126, 234, 0.5), 0 4px 10px rgba(118, 75, 162, 0.3);
+        }
+        .create-backup-btn:active {
+          transform: translateY(0) scale(0.98);
+        }
+        .create-backup-btn .anticon-plus {
+          transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .create-backup-btn:hover .anticon-plus {
+          transform: rotate(90deg);
+        }
+        .create-backup-btn > span:not(.anticon):not(.ant-btn-loading-icon) {
+          position: relative;
+          z-index: 1;
+        }
+        .create-backup-btn .anticon,
+        .create-backup-btn .ant-btn-loading-icon {
+          position: relative;
+          z-index: 1;
+        }
+
+        .backup-dropdown-menu .ant-dropdown-menu {
+          padding: 8px;
+          border-radius: 14px;
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16), 0 4px 10px rgba(15, 23, 42, 0.08);
+          background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+          border: 1px solid rgba(226, 232, 240, 0.8);
+          min-width: 280px;
+        }
+        .backup-dropdown-menu .ant-dropdown-menu-item {
+          padding: 10px 12px;
+          border-radius: 10px;
+          margin-bottom: 4px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          height: auto;
+          line-height: 1.4;
+        }
+        .backup-dropdown-menu .ant-dropdown-menu-item:last-child {
+          margin-bottom: 0;
+        }
+        .backup-dropdown-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover {
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+          transform: translateX(2px);
+        }
+        .backup-dropdown-menu .ant-dropdown-menu-item-disabled {
+          opacity: 0.55;
+        }
+        .backup-dropdown-menu .backup-menu-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-size: 16px;
+          flex-shrink: 0;
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+          transition: transform 0.25s ease;
+        }
+        .backup-dropdown-menu .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-disabled):hover .backup-menu-icon {
+          transform: scale(1.08) rotate(-4deg);
+        }
+        .backup-dropdown-menu .backup-menu-icon-local {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .backup-dropdown-menu .backup-menu-icon-remote {
+          background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+        }
+        .backup-dropdown-menu .backup-menu-icon-danger {
+          background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+        }
+        .backup-dropdown-menu .backup-menu-text {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .backup-dropdown-menu .backup-menu-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1e293b;
+          line-height: 1.4;
+        }
+        .backup-dropdown-menu .backup-menu-desc {
+          font-size: 12px;
+          color: #94a3b8;
+          line-height: 1.4;
+        }
+
+        /* ===== 通用按钮动效系统 ===== */
+        @keyframes backupBtnShimmerSecondary {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(120%); }
+        }
+        .backup-action-btn {
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backup-action-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+          transform: translateX(-120%);
+          pointer-events: none;
+          z-index: 0;
+        }
+        .backup-action-btn:hover::before {
+          animation: backupBtnShimmerSecondary 0.9s ease-out;
+        }
+        .backup-action-btn .anticon {
+          position: relative;
+          z-index: 1;
+          transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .backup-action-btn > span:not(.anticon):not(.ant-btn-loading-icon) {
+          position: relative;
+          z-index: 1;
+        }
+
+        /* 次级按钮（设置/刷新/清理/上传备份） */
+        .backup-action-btn-secondary:hover {
+          transform: translateY(-1px);
+          border-color: #667eea !important;
+          color: #667eea !important;
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%) !important;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        .backup-action-btn-secondary:hover .anticon {
+          transform: scale(1.12);
+        }
+        .backup-action-btn-secondary:active {
+          transform: translateY(0);
+        }
+
+        /* 表格内小按钮通用 */
+        .backup-table-btn {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backup-table-btn::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+          transform: translateX(-120%);
+          pointer-events: none;
+        }
+        .backup-table-btn:hover::after {
+          animation: backupBtnShimmerSecondary 0.9s ease-out;
+        }
+        .backup-table-btn .anticon {
+          transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* 验证按钮（成功色） */
+        .backup-table-btn-success:hover {
+          transform: translateY(-1px) scale(1.03);
+          filter: brightness(1.08);
+          box-shadow: 0 6px 14px rgba(16, 185, 129, 0.35) !important;
+        }
+        .backup-table-btn-success:hover .anticon {
+          transform: rotate(-8deg) scale(1.1);
+        }
+
+        /* 下载按钮（次级） */
+        .backup-table-btn-download:hover {
+          transform: translateY(-1px);
+          border-color: #667eea !important;
+          color: #667eea !important;
+          background: rgba(102, 126, 234, 0.06) !important;
+        }
+        .backup-table-btn-download:hover .anticon {
+          transform: translateY(2px);
+        }
+
+        /* 恢复按钮（警告色） */
+        .backup-table-btn-warning:hover {
+          transform: translateY(-1px) scale(1.03);
+          filter: brightness(1.08);
+          box-shadow: 0 6px 14px rgba(245, 158, 11, 0.35) !important;
+        }
+        .backup-table-btn-warning:hover .anticon {
+          transform: translateY(-2px) scale(1.1);
+        }
+
+        /* 图标按钮（远端上传/删除） */
+        .backup-table-btn-icon {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backup-table-btn-icon:hover {
+          transform: translateY(-2px) scale(1.08);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+        .backup-table-btn-icon .anticon {
+          transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* 远端上传按钮（主色） */
+        .backup-table-btn-remote:hover {
+          filter: brightness(1.1);
+          box-shadow: 0 6px 14px rgba(102, 126, 234, 0.4);
+        }
+        .backup-table-btn-remote:hover .anticon {
+          transform: translateY(-2px) scale(1.15);
+        }
+
+        /* 删除按钮（危险色） */
+        .backup-table-btn-danger:hover {
+          background: linear-gradient(135deg, #ef4444 0%, #f87171 100%) !important;
+          color: #fff !important;
+          border-color: transparent !important;
+          box-shadow: 0 6px 14px rgba(239, 68, 68, 0.4);
+        }
+        .backup-table-btn-danger:hover .anticon {
+          transform: rotate(8deg) scale(1.15);
+        }
+
+        /* 弹窗按钮增强 */
+        .backup-modal-btn-danger {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backup-modal-btn-danger:hover {
+          transform: translateY(-1px) scale(1.02);
+          filter: brightness(1.08);
+          box-shadow: 0 8px 18px rgba(239, 68, 68, 0.4);
+        }
+        .backup-modal-btn-danger .anticon {
+          transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .backup-modal-btn-danger:hover .anticon {
+          transform: translateY(-2px) scale(1.1);
+        }
+
+        .backup-modal-btn-secondary {
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backup-modal-btn-secondary:hover {
+          transform: translateY(-1px);
+          border-color: #667eea !important;
+          color: #667eea !important;
+        }
+
+        .backup-modal-btn-primary {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backup-modal-btn-primary::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+          transform: translateX(-120%);
+          pointer-events: none;
+        }
+        .backup-modal-btn-primary:hover {
+          transform: translateY(-1px) scale(1.02);
+          filter: brightness(1.08);
+          box-shadow: 0 8px 18px rgba(102, 126, 234, 0.4);
+        }
+        .backup-modal-btn-primary:hover::before {
+          animation: backupBtnShimmerSecondary 0.9s ease-out;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .backup-action-btn,
+          .backup-action-btn::before,
+          .backup-table-btn,
+          .backup-table-btn::after,
+          .backup-table-btn-icon,
+          .backup-modal-btn-danger,
+          .backup-modal-btn-secondary,
+          .backup-modal-btn-primary,
+          .backup-modal-btn-primary::before,
+          .backup-action-btn .anticon,
+          .backup-table-btn .anticon,
+          .backup-table-btn-icon .anticon,
+          .backup-modal-btn-danger .anticon {
+            animation: none !important;
+            transition: none !important;
+          }
+        }
+      `}</style>
       <div style={pageHeaderStyle}>
         <div>
           <h1 style={titleStyle}>
@@ -1771,34 +2249,59 @@ const BackupManagement = () => {
         <div style={buttonGroupStyle}>
           <Space size="middle" wrap>
             <Dropdown
+              overlayClassName="backup-dropdown-menu"
               menu={{
                 items: [
                   {
                     key: 'auto',
-                    icon: <SettingOutlined />,
-                    label: '自动备份设置',
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                        <span className="backup-menu-icon backup-menu-icon-local">
+                          <SettingOutlined />
+                        </span>
+                        <span className="backup-menu-text">
+                          <span className="backup-menu-title">自动备份设置</span>
+                          <span className="backup-menu-desc">配置定时备份计划</span>
+                        </span>
+                      </div>
+                    ),
                     onClick: () => navigate('/auto-backup-settings'),
                   },
                   {
                     key: 'remote',
-                    icon: <CloudOutlined />,
-                    label: '远端备份配置',
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                        <span className="backup-menu-icon backup-menu-icon-remote">
+                          <CloudOutlined />
+                        </span>
+                        <span className="backup-menu-text">
+                          <span className="backup-menu-title">远端备份配置</span>
+                          <span className="backup-menu-desc">管理远端存储目标</span>
+                        </span>
+                      </div>
+                    ),
                     onClick: () => navigate('/remote-backup-settings'),
                   },
                 ],
               }}
               placement="bottomRight"
             >
-              <Button icon={<SettingOutlined />} style={secondaryButtonStyle}>
+              <Button
+                icon={<SettingOutlined />}
+                className="backup-action-btn backup-action-btn-secondary"
+                style={secondaryButtonStyle}
+              >
                 设置
               </Button>
             </Dropdown>
 
             <Button
               icon={<ReloadOutlined />}
+              className="backup-action-btn backup-action-btn-secondary"
               onClick={() => {
                 fetchBackups();
                 fetchBackupInfo();
+                fetchRemoteInfo();
               }}
               style={secondaryButtonStyle}
             >
@@ -1806,19 +2309,38 @@ const BackupManagement = () => {
             </Button>
 
             <Dropdown
+              overlayClassName="backup-dropdown-menu"
               menu={{
                 items: [
                   {
                     key: 'preview',
-                    icon: <EyeOutlined />,
-                    label: '预览清理',
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                        <span className="backup-menu-icon backup-menu-icon-local">
+                          <EyeOutlined />
+                        </span>
+                        <span className="backup-menu-text">
+                          <span className="backup-menu-title">预览清理</span>
+                          <span className="backup-menu-desc">查看将被删除的文件</span>
+                        </span>
+                      </div>
+                    ),
                     onClick: () => handleCleanBackups(30, 90, true),
                   },
                   {
                     key: 'clean',
-                    icon: <ClearOutlined />,
-                    label: '清理旧备份',
                     danger: true,
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                        <span className="backup-menu-icon backup-menu-icon-danger">
+                          <ClearOutlined />
+                        </span>
+                        <span className="backup-menu-text">
+                          <span className="backup-menu-title">清理旧备份</span>
+                          <span className="backup-menu-desc">删除超 30 个或 90 天的备份</span>
+                        </span>
+                      </div>
+                    ),
                     onClick: () => {
                       Modal.confirm({
                         title: '确认清理旧备份',
@@ -1834,26 +2356,85 @@ const BackupManagement = () => {
               }}
               placement="bottomRight"
             >
-              <Button icon={<ClearOutlined />} style={secondaryButtonStyle}>
+              <Button
+                icon={<ClearOutlined />}
+                className="backup-action-btn backup-action-btn-secondary"
+                style={secondaryButtonStyle}
+              >
                 清理
               </Button>
             </Dropdown>
 
             <Upload customRequest={handleUpload} showUploadList={false} accept=".json,.gz,.json.gz">
-              <Button icon={<UploadOutlined />} style={secondaryButtonStyle}>
+              <Button
+                icon={<UploadOutlined />}
+                className="backup-action-btn backup-action-btn-secondary"
+                style={secondaryButtonStyle}
+              >
                 上传备份
               </Button>
             </Upload>
 
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              loading={backupLoading}
-              onClick={handleCreateBackup}
-              style={primaryButtonStyle}
+            <Dropdown
+              trigger={['click']}
+              overlayClassName="backup-dropdown-menu"
+              menu={{
+                items: [
+                  {
+                    key: 'local',
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                        <span className="backup-menu-icon backup-menu-icon-local">
+                          <DatabaseOutlined />
+                        </span>
+                        <span className="backup-menu-text">
+                          <span className="backup-menu-title">仅本地备份</span>
+                          <span className="backup-menu-desc">保存到服务器本地存储</span>
+                        </span>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'remote',
+                    disabled: !remoteUploadAvailable,
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                        <span className="backup-menu-icon backup-menu-icon-remote">
+                          <CloudOutlined />
+                        </span>
+                        <span className="backup-menu-text">
+                          <span className="backup-menu-title">备份并上传到远端</span>
+                          <span className="backup-menu-desc">
+                            {remoteUploadAvailable
+                              ? `上传到 ${enabledRemoteTargets.length} 个远端目标`
+                              : '需先配置远端目标'}
+                          </span>
+                        </span>
+                      </div>
+                    ),
+                  },
+                ],
+                onClick: ({ key }) => handleCreateBackup(key === 'remote'),
+              }}
+              placement="bottomRight"
             >
-              创建备份
-            </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                loading={backupLoading}
+                className="create-backup-btn"
+                style={{
+                  ...primaryButtonStyle,
+                  height: '44px',
+                  padding: '0 20px',
+                  fontSize: '15px',
+                  letterSpacing: '0.3px',
+                }}
+              >
+                创建备份
+                <DownOutlined style={{ fontSize: 11, marginLeft: 2, opacity: 0.85 }} />
+              </Button>
+            </Dropdown>
           </Space>
         </div>
       </div>
@@ -1988,7 +2569,7 @@ const BackupManagement = () => {
                       fontWeight: 500,
                     }}
                   >
-                    备份存储路径
+                    本地存储路径
                   </p>
                   <p
                     style={{
@@ -2027,6 +2608,103 @@ const BackupManagement = () => {
             </Card>
           </Col>
         </Row>
+      )}
+
+      {/* 远端备份状态概览：仅当远端备份启用且有启用目标时展示 */}
+      {remoteUploadAvailable && (
+        <Card
+          style={{
+            ...cardStyle,
+            marginBottom: 24,
+            background: `linear-gradient(135deg, ${designTokens.colors.success.main}08 0%, ${designTokens.colors.primary.main}08 100%)`,
+            border: `1px solid ${designTokens.colors.success.main}30`,
+          }}
+          styles={{ body: { padding: '20px 24px' } }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: '12px',
+                background: designTokens.colors.success.gradient,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                flexShrink: 0,
+              }}
+            >
+              <CloudOutlined style={{ color: '#fff', fontSize: 24 }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: designTokens.colors.text.primary,
+                  }}
+                >
+                  远端备份已启用
+                </span>
+                <Tag color="success" style={{ borderRadius: '6px', margin: 0 }}>
+                  {enabledRemoteTargets.length} 个目标
+                </Tag>
+                {remoteSettings.uploadAfterBackup && (
+                  <Tag color="blue" style={{ borderRadius: '6px', margin: 0 }}>
+                    备份后自动上传
+                  </Tag>
+                )}
+                {remoteSettings.deleteLocalAfterUpload && (
+                  <Tag color="warning" style={{ borderRadius: '6px', margin: 0 }}>
+                    上传后删本地
+                  </Tag>
+                )}
+              </div>
+              <div
+                style={{
+                  marginTop: 10,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
+                {enabledRemoteTargets.map(t => (
+                  <Tooltip
+                    key={t.id}
+                    title={`${t.protocol.toUpperCase()} · ${t.host || t.url || ''}${t.prefix || t.rootPath ? ' · ' + (t.prefix || t.rootPath) : ''}`}
+                  >
+                    <Tag
+                      style={{
+                        borderRadius: '6px',
+                        background: designTokens.colors.background.secondary,
+                        border: `1px solid ${designTokens.colors.border.light}`,
+                        padding: '2px 10px',
+                        fontSize: 12,
+                      }}
+                    >
+                      <CloudOutlined style={{ marginRight: 4, color: designTokens.colors.success.main }} />
+                      {t.name} · {t.protocol.toUpperCase()}
+                    </Tag>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+            <Button
+              icon={<SettingOutlined />}
+              onClick={() => navigate('/remote-backup-settings')}
+              className="backup-action-btn backup-action-btn-secondary"
+              style={{
+                ...buttonStyles.secondary.base,
+                padding: '8px 16px',
+                height: '40px',
+              }}
+            >
+              配置远端目标
+            </Button>
+          </div>
+        </Card>
       )}
 
       <Card style={cardStyle} styles={{ body: { padding: '24px' } }}>
@@ -2115,7 +2793,7 @@ const BackupManagement = () => {
                     color: designTokens.colors.text.muted,
                   }}
                 >
-                  点击"创建备份"按钮开始备份
+                  点击"创建备份"按钮选择备份方式（仅本地或备份并上传到远端）
                 </p>
               </div>
             ),
@@ -2215,6 +2893,7 @@ const BackupManagement = () => {
                 danger
                 icon={<CloseCircleOutlined />}
                 onClick={handleStopRestore}
+                className="backup-modal-btn-danger"
                 style={{
                   marginTop: 24,
                   ...buttonStyles.danger.base,
@@ -2330,6 +3009,7 @@ const BackupManagement = () => {
               >
                 <Button
                   onClick={() => setRestoreVisible(false)}
+                  className="backup-modal-btn-secondary"
                   style={secondaryButtonStyle}
                   disabled={restoreLoading}
                 >
@@ -2340,6 +3020,7 @@ const BackupManagement = () => {
                   danger
                   icon={<CloudUploadOutlined />}
                   onClick={() => handleRestore(selectedBackup?.filename)}
+                  className="backup-modal-btn-danger"
                   style={{
                     ...buttonStyles.danger.base,
                     padding: '8px 24px',
@@ -2350,6 +3031,120 @@ const BackupManagement = () => {
               </div>
             </>
           )}
+        </div>
+      </Modal>
+
+      {/* 上传备份到远端存储确认弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CloudOutlined style={{ color: designTokens.colors.primary.main }} />
+            <span>上传备份到远端存储</span>
+          </div>
+        }
+        open={uploadRemoteVisible}
+        onOk={confirmUploadToRemote}
+        onCancel={() => !uploadRemoteLoading && setUploadRemoteVisible(false)}
+        confirmLoading={uploadRemoteLoading}
+        okText="确认上传"
+        cancelText="取消"
+        okButtonProps={{
+          className: 'backup-modal-btn-primary',
+          style: {
+            background: designTokens.colors.primary.gradient,
+            borderColor: designTokens.colors.primary.main,
+          },
+        }}
+        maskClosable={!uploadRemoteLoading}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div
+            style={{
+              padding: '12px 16px',
+              background: designTokens.colors.background.accent,
+              borderRadius: '8px',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ color: designTokens.colors.text.muted, fontSize: 13, marginBottom: 4 }}>
+              备份文件
+            </div>
+            <div
+              style={{
+                fontFamily: 'monospace',
+                fontSize: 13,
+                fontWeight: 600,
+                color: designTokens.colors.text.primary,
+                wordBreak: 'break-all',
+              }}
+            >
+              {uploadRemoteFilename}
+            </div>
+          </div>
+
+          <div style={{ color: designTokens.colors.text.secondary, fontSize: 14, marginBottom: 8 }}>
+            将上传到以下 <strong style={{ color: designTokens.colors.success.main }}>{enabledRemoteTargets.length}</strong> 个已启用的远端目标：
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {enabledRemoteTargets.map(t => (
+              <div
+                key={t.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 12px',
+                  background: designTokens.colors.background.secondary,
+                  borderRadius: '8px',
+                  border: `1px solid ${designTokens.colors.border.light}`,
+                }}
+              >
+                <CloudOutlined style={{ color: designTokens.colors.success.main, fontSize: 16 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: designTokens.colors.text.primary }}>
+                    {t.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: designTokens.colors.text.muted,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t.protocol.toUpperCase()} · {t.host || t.url || ''}
+                    {(t.prefix || t.rootPath) && ` · ${t.prefix || t.rootPath}`}
+                  </div>
+                </div>
+                <Tag color="success" style={{ margin: 0, borderRadius: '6px' }}>
+                  已启用
+                </Tag>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              marginTop: 16,
+              padding: '10px 12px',
+              background: `${designTokens.colors.warning.main}10`,
+              borderRadius: '8px',
+              fontSize: 12,
+              color: designTokens.colors.text.secondary,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <ExclamationCircleOutlined
+              style={{ color: designTokens.colors.warning.main, marginTop: 2 }}
+            />
+            <span>
+              上传过程中请勿关闭页面。部分目标失败时，本地备份文件不受影响，可稍后重试。
+            </span>
+          </div>
         </div>
       </Modal>
     </div>

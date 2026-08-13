@@ -268,6 +268,13 @@ export const backupAPI = {
   getLogs: params => api.get('/backup/logs', { params }),
   getLogDetail: id => api.get(`/backup/logs/${id}`),
   cleanOldLogs: days => api.delete('/backup/logs/clean', { params: { days } }),
+  // 远端备份相关
+  getRemoteTargets: () => api.get('/backup/remote/targets'),
+  getRemoteSettings: () => api.get('/backup/remote/settings'),
+  updateRemoteSettings: data => api.put('/backup/remote/settings', data),
+  uploadToRemote: (filename, targetIds) =>
+    api.post('/backup/remote/upload', { filename, targetIds }),
+  testRemoteTarget: id => api.post(`/backup/remote/targets/${id}/test`),
 };
 
 export const systemSettingsAPI = {

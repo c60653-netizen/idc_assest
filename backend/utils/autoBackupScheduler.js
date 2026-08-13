@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { createBackup, createIncrementalBackup, getBackupPath } = require('./backup');
 const { uploadToRemote } = require('./remoteBackup');
-const { getEnabledTargets, getGlobalSettings } = require('./remoteBackupConfig');
+const { getEnabledTargets, getGlobalSettings, getTarget } = require('./remoteBackupConfig');
 const { createLogEntry, updateLogStatus } = require('./backupLog');
 const logger = require('./logger').module('AutoBackup');
 
@@ -20,6 +20,10 @@ const DEFAULT_SETTINGS = {
   compress: true,
   maxCount: 30,
   maxAgeDays: 90,
+  // 远端备份相关：自动备份自身的开关，独立于全局 uploadAfterBackup
+  uploadToRemote: false,
+  // 选中的远端目标 ID 列表；空数组表示上传到所有已启用目标
+  remoteTargetIds: [],
 };
 
 function loadSettings() {
@@ -89,8 +93,17 @@ function getFileSize(filePath) {
 }
 
 function createAutoBackupTask(settings) {
-  const { cronExpression, description, backupType, includeFiles, compress, maxCount, maxAgeDays } =
-    settings;
+  const {
+    cronExpression,
+    description,
+    backupType,
+    includeFiles,
+    compress,
+    maxCount,
+    maxAgeDays,
+    uploadToRemote,
+    remoteTargetIds,
+  } = settings;
 
   if (!validateCronExpression(cronExpression)) {
     throw new Error('无效的 Cron 表达式');
@@ -146,7 +159,17 @@ function createAutoBackupTask(settings) {
 
           const fileSize = getFileSize(result.path);
 
-          const uploadResults = await uploadToRemoteTargets(result.path, result.filename);
+          // 自动备份自身的远端上传开关开启时，强制上传到指定目标（独立于全局 uploadAfterBackup）
+          // 全局 enabled 仍由 uploadToRemoteTargets 内部校验
+          let uploadResults = [];
+          if (uploadToRemote) {
+            uploadResults = await uploadToRemoteTargets(result.path, result.filename, {
+              forceUpload: true,
+              targetIds: remoteTargetIds,
+            });
+          } else {
+            logger.info('自动备份未启用远端上传（settings.uploadToRemote=false）');
+          }
 
           if (logId) {
             await updateLogStatus(logId, 'success', {
@@ -244,6 +267,8 @@ function getAutoBackupStatus() {
     compress: settings.compress,
     maxCount: settings.maxCount,
     maxAgeDays: settings.maxAgeDays,
+    uploadToRemote: settings.uploadToRemote || false,
+    remoteTargetIds: settings.remoteTargetIds || [],
     nextRun,
   };
 }
@@ -274,18 +299,47 @@ function updateAutoBackupSettings(newSettings) {
   return false;
 }
 
-async function uploadToRemoteTargets(localFilePath, filename) {
+async function uploadToRemoteTargets(localFilePath, filename, options = {}) {
   const globalSettings = getGlobalSettings();
 
-  if (!globalSettings.enabled || !globalSettings.uploadAfterBackup) {
+  // 全局开关关闭时一律跳过
+  if (!globalSettings.enabled) {
     logger.info('远端备份已禁用');
     return [];
   }
 
-  const enabledTargets = getEnabledTargets();
+  // forceUpload 用于手动触发场景，绕过"备份后自动上传"开关检查
+  if (!options.forceUpload && !globalSettings.uploadAfterBackup) {
+    logger.info('远端备份已禁用（未启用备份后自动上传）');
+    return [];
+  }
+
+  let enabledTargets = getEnabledTargets();
 
   if (enabledTargets.length === 0) {
     logger.info('没有启用的远端备份目标');
+    return [];
+  }
+
+  // 按 targetIds 过滤目标（仅上传到指定目标，未指定则上传到所有启用目标）
+  if (options.targetIds && Array.isArray(options.targetIds) && options.targetIds.length > 0) {
+    const idSet = new Set(options.targetIds);
+    enabledTargets = enabledTargets.filter(t => idSet.has(t.id));
+    if (enabledTargets.length === 0) {
+      logger.info('指定的远端目标均未启用或不存在', { targetIds: options.targetIds });
+      return [];
+    }
+    logger.info(`按指定目标上传：${enabledTargets.length}/${options.targetIds.length} 个`);
+  }
+
+  // 关键：getEnabledTargets 返回的目标 password 等敏感字段仍是加密密文，
+  // 必须用 getTarget(id) 解密后才能传给上传函数，否则认证必失败
+  enabledTargets = enabledTargets
+    .map(t => getTarget(t.id))
+    .filter(Boolean);
+
+  if (enabledTargets.length === 0) {
+    logger.error('解密远端目标敏感信息后无可用目标');
     return [];
   }
 
@@ -372,7 +426,18 @@ async function executeBackupNow(options = {}) {
 
     const fileSize = getFileSize(result.path);
 
-    const uploadResults = await uploadToRemoteTargets(result.path, result.filename);
+    // 手动"立即执行"时，按调用方传入的 uploadToRemote 决定是否上传
+    // 未显式传入时回退到 settings.uploadToRemote（与定时任务保持一致）
+    const shouldUpload = options.uploadToRemote !== undefined ? options.uploadToRemote : settings.uploadToRemote;
+    let uploadResults = [];
+    if (shouldUpload) {
+      uploadResults = await uploadToRemoteTargets(result.path, result.filename, {
+        forceUpload: true,
+        targetIds: options.remoteTargetIds !== undefined ? options.remoteTargetIds : settings.remoteTargetIds,
+      });
+    } else {
+      logger.info('手动执行备份未启用远端上传');
+    }
 
     if (logId) {
       await updateLogStatus(logId, 'success', {
@@ -432,4 +497,5 @@ module.exports = {
   updateAutoBackupSettings,
   executeBackupNow,
   initAutoBackup,
+  uploadToRemoteTargets,
 };

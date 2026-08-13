@@ -52,6 +52,7 @@ const {
   getAutoBackupStatus,
   updateAutoBackupSettings,
   executeBackupNow,
+  uploadToRemoteTargets,
 } = require('../utils/autoBackupScheduler');
 const { getBackupLogs, getBackupLogById, deleteOldLogs } = require('../utils/backupLog');
 const {
@@ -80,7 +81,7 @@ router.use(requirePermission('backup:view', 'backup:create', 'backup:restore', '
 
 router.post('/', requirePermission('backup:create'), async (req, res) => {
   try {
-    const { description = '', includeFiles = true } = req.body;
+    const { description = '', includeFiles = true, uploadToRemote = false } = req.body;
 
     logger.info('开始创建备份...');
     const result = await createBackup({
@@ -88,7 +89,32 @@ router.post('/', requirePermission('backup:create'), async (req, res) => {
       includeFiles: includeFiles !== false,
     });
 
-    await logBackupOperation('create', `创建备份：${result.filename || description || '未命名'}`, {
+    // 若请求上传到远端，则在备份创建成功后立即上传
+    // 远端上传失败不影响备份创建结果，仅在响应中标注
+    let remoteUploadResults = [];
+    if (uploadToRemote) {
+      logger.info('手动备份触发远端上传', { filename: result.filename });
+      try {
+        remoteUploadResults = await uploadToRemoteTargets(result.path, result.filename, {
+          forceUpload: true,
+        });
+      } catch (error) {
+        logger.error('手动备份后远端上传失败', { error: error.message, stack: error.stack });
+      }
+    }
+
+    // 构造操作日志描述：包含远端上传结果摘要
+    let logDesc = `创建备份：${result.filename || description || '未命名'}`;
+    if (uploadToRemote) {
+      if (remoteUploadResults.length > 0) {
+        const successCount = remoteUploadResults.filter(r => r.success).length;
+        logDesc += `（已上传到 ${successCount}/${remoteUploadResults.length} 个远端目标）`;
+      } else {
+        logDesc += '（远端上传未执行：远端备份未启用或无启用目标）';
+      }
+    }
+
+    await logBackupOperation('create', logDesc, {
       targetId: result.filename,
       targetName: result.filename || description,
       afterState: {
@@ -99,13 +125,40 @@ router.post('/', requirePermission('backup:create'), async (req, res) => {
         timestamp: result.timestamp,
       },
       req,
-      metadata: { includeFiles: includeFiles !== false },
+      metadata: {
+        includeFiles: includeFiles !== false,
+        uploadToRemote,
+        remoteUploadResults: uploadToRemote
+          ? remoteUploadResults.map(r => ({ name: r.targetName, success: r.success }))
+          : undefined,
+      },
     });
+
+    // 构造响应消息
+    let message = '备份创建成功';
+    if (uploadToRemote) {
+      if (remoteUploadResults.length > 0) {
+        const successCount = remoteUploadResults.filter(r => r.success).length;
+        const failCount = remoteUploadResults.length - successCount;
+        if (failCount === 0) {
+          message = `备份创建成功，已上传到 ${successCount} 个远端目标`;
+        } else if (successCount === 0) {
+          message = `备份创建成功，但远端上传全部失败（${failCount} 个目标）`;
+        } else {
+          message = `备份创建成功，远端上传：${successCount} 成功，${failCount} 失败`;
+        }
+      } else {
+        message = '备份创建成功，但未上传到远端（远端备份未启用或无启用目标）';
+      }
+    }
 
     res.json({
       success: true,
-      message: '备份创建成功',
-      data: result,
+      message,
+      data: {
+        ...result,
+        remoteUploadResults: uploadToRemote ? remoteUploadResults : undefined,
+      },
     });
   } catch (error) {
     logger.error('创建备份失败', { error: error.message, stack: error.stack });
@@ -1118,17 +1171,34 @@ router.post('/remote/test', async (req, res) => {
   try {
     const config = req.body;
 
-    if (!config.host || !config.port || !config.username) {
-      return res.status(400).json({
-        success: false,
-        message: '请提供完整的连接信息（主机、端口、用户名）',
-      });
-    }
-
     if (!config.protocol) {
       return res.status(400).json({
         success: false,
         message: '请提供协议类型（protocol）',
+      });
+    }
+
+    // 按协议类型差异化校验必填字段
+    const protocolValidations = {
+      ftp: { fields: ['host', 'port', 'username'], label: '主机、端口、用户名' },
+      sftp: { fields: ['host', 'port', 'username'], label: '主机、端口、用户名' },
+      webdav: { fields: ['url', 'username'], label: 'WebDAV URL、用户名' },
+      smb: { fields: ['host', 'share', 'username'], label: '主机、共享文件夹、用户名' },
+    };
+
+    const validation = protocolValidations[config.protocol];
+    if (!validation) {
+      return res.status(400).json({
+        success: false,
+        message: `不支持的协议类型：${config.protocol}`,
+      });
+    }
+
+    const missingFields = validation.fields.filter(field => !config[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `请提供完整的连接信息（${validation.label}）`,
       });
     }
 
@@ -1276,9 +1346,10 @@ router.post('/remote/upload', async (req, res) => {
     const { uploadToRemote } = require('../utils/remoteBackup');
     const { getTarget } = require('../utils/remoteBackupConfig');
 
+    // 注意：getEnabledTargets 返回的目标 password 仍是加密密文，必须用 getTarget(id) 解密后才能用于连接
     const targets = targetIds
       ? targetIds.map(id => getTarget(id)).filter(Boolean)
-      : getEnabledTargets();
+      : getEnabledTargets().map(t => getTarget(t.id)).filter(Boolean);
 
     if (targets.length === 0) {
       return res.status(400).json({
