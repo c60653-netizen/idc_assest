@@ -122,6 +122,11 @@ function DeviceManagement() {
   const [batchWarrantyModalVisible, setBatchWarrantyModalVisible] = useState(false);
   const [batchWarrantyLoading, setBatchWarrantyLoading] = useState(false);
 
+  // 标记为空闲弹窗：要求用户填写空闲原因/备注
+  const [toIdleModalVisible, setToIdleModalVisible] = useState(false);
+  const [toIdleLoading, setToIdleLoading] = useState(false);
+  const [toIdleForm] = Form.useForm();
+
   const [exportModalVisible, setExportModalVisible] = useState(false);
 
   const [selectedDevices, setSelectedDevices] = useState([]);
@@ -377,32 +382,38 @@ function DeviceManagement() {
     });
   };
 
-  const handleBatchToIdle = async () => {
+  // 打开"标记为空闲"弹窗，要求用户填写空闲原因/备注
+  const handleBatchToIdle = () => {
     if (selectedDevices.length === 0) {
       message.warning('请先选择要标记为空闲的设备');
       return;
     }
-    Modal.confirm({
-      title: '确认标记为空闲',
-      content: `确定要将选中的 ${selectedDevices.length} 个设备标记为空闲设备吗？`,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          const response = await axios.post('/api/idle-devices/batch-from-devices', {
-            deviceIds: selectedDevices,
-            idleReason: '从设备管理批量转入',
-          });
-          message.success(response.data.message || '设备已标记为空闲');
-          setSelectedDevices([]);
-          setSelectAll(false);
-          fetchDevices(1, 50);
-        } catch (error) {
-          message.error(error.response?.data?.error || '标记为空闲失败');
-          console.error('标记为空闲失败:', error);
-        }
-      },
-    });
+    toIdleForm.resetFields();
+    toIdleForm.setFieldsValue({ idleReason: '' });
+    setToIdleModalVisible(true);
+  };
+
+  // 确认提交：将选中设备标记为空闲，附带用户填写的空闲原因
+  const handleConfirmToIdle = async () => {
+    try {
+      const values = await toIdleForm.validateFields();
+      setToIdleLoading(true);
+      const response = await axios.post('/api/idle-devices/batch-from-devices', {
+        deviceIds: selectedDevices,
+        idleReason: values.idleReason?.trim() || '从设备管理批量转入',
+      });
+      message.success(response.data.message || '设备已标记为空闲');
+      setToIdleModalVisible(false);
+      setSelectedDevices([]);
+      setSelectAll(false);
+      fetchDevices(1, pagination.pageSize);
+    } catch (error) {
+      if (error.errorFields) return; // 表单校验未通过
+      message.error(error.response?.data?.error || '标记为空闲失败');
+      console.error('标记为空闲失败:', error);
+    } finally {
+      setToIdleLoading(false);
+    }
   };
 
   const handleDelete = async deviceId => {
@@ -1415,6 +1426,50 @@ function DeviceManagement() {
         onSubmit={handleBatchWarrantyUpdate}
         onCancel={() => setBatchWarrantyModalVisible(false)}
       />
+
+      {/* 标记为空闲弹窗：要求填写空闲原因/备注 */}
+      <Modal
+        title={`标记为空闲（${selectedDevices.length} 个设备）`}
+        open={toIdleModalVisible}
+        onOk={handleConfirmToIdle}
+        onCancel={() => setToIdleModalVisible(false)}
+        okText="确认标记"
+        cancelText="取消"
+        confirmLoading={toIdleLoading}
+        destroyOnClose
+        maskClosable={false}
+      >
+        <Form form={toIdleForm} layout="vertical" preserve={false}>
+          <Form.Item
+            name="idleReason"
+            label="空闲原因 / 备注"
+            tooltip="请填写设备空闲或下架的具体原因，便于后续追溯"
+            rules={[
+              { required: true, message: '请填写空闲原因/备注' },
+              { max: 200, message: '备注不超过 200 字符' },
+            ]}
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="请输入空闲原因，例如：设备下线、备件库存、故障待修、合同到期等"
+              maxLength={200}
+              showCount
+              autoFocus
+            />
+          </Form.Item>
+          <Space size={[8, 8]} wrap>
+            {['设备下线', '备件库存', '故障待修', '合同到期'].map(reason => (
+              <Tag
+                key={reason}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => toIdleForm.setFieldValue('idleReason', reason)}
+              >
+                {reason}
+              </Tag>
+            ))}
+          </Space>
+        </Form>
+      </Modal>
     </div>
   );
 }

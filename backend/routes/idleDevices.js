@@ -241,14 +241,22 @@ router.post('/from-device/:deviceId', authMiddleware, requirePermission('idle:sh
     await t.commit();
 
     const deviceData = device.toJSON();
-    await logDeviceOperation('to_idle', generateDeviceDescription('设备转入空闲设备', deviceData), {
-      targetId: device.deviceId,
-      targetName: device.name,
-      beforeState: { ...deviceData, isIdle: false },
-      afterState: { ...deviceData, isIdle: true },
-      req,
-      metadata: buildDeviceMetadata(deviceData, { idleReason, type: 'device_to_idle' }),
-    });
+    const reasonText = idleReason || '从设备管理转入';
+    await logDeviceOperation(
+      'to_idle',
+      generateDeviceDescription('设备转入空闲设备', deviceData) + `，空闲原因：${reasonText}`,
+      {
+        targetId: device.deviceId,
+        targetName: device.name,
+        beforeState: { ...deviceData, isIdle: false },
+        afterState: { ...deviceData, isIdle: true },
+        req,
+        metadata: buildDeviceMetadata(deviceData, {
+          idleReason: reasonText,
+          type: 'device_to_idle',
+        }),
+      }
+    );
 
     res.json({
       message: '设备已转入空闲设备',
@@ -305,6 +313,7 @@ router.post('/batch-from-devices', authMiddleware, requirePermission('idle:shelv
     await t.commit();
 
     const deviceDetails = notIdleDevices.map(d => d.toJSON());
+    const reasonText = idleReason || '批量转入';
     const deviceSummary = deviceDetails
       .map(
         d =>
@@ -314,12 +323,16 @@ router.post('/batch-from-devices', authMiddleware, requirePermission('idle:shelv
 
     await logDeviceOperation(
       'batch_to_idle',
-      `批量将 ${notIdleDevices.length} 台设备转入空闲设备：${deviceSummary}`,
+      `批量将 ${notIdleDevices.length} 台设备转入空闲设备（空闲原因：${reasonText}）：${deviceSummary}`,
       {
         targetId: deviceIds.join(','),
         targetName: `${notIdleDevices.length}台设备`,
         req,
-        metadata: { idleReason, type: 'batch_device_to_idle', devices: deviceDetails },
+        metadata: {
+          idleReason: reasonText,
+          type: 'batch_device_to_idle',
+          devices: deviceDetails,
+        },
       }
     );
 
@@ -443,6 +456,9 @@ router.put('/batch-restore', authMiddleware, requirePermission('idle:restore'), 
         continue;
       }
 
+      // 在 update 前保存原空闲原因（update 会清空 idleReason 字段）
+      const previousIdleReason = device.idleReason || '未填写';
+
       await device.update(
         {
           isIdle: false,
@@ -471,6 +487,7 @@ router.put('/batch-restore', authMiddleware, requirePermission('idle:restore'), 
         status: 'success',
         targetRack: targetRack.name,
         targetPosition: position,
+        previousIdleReason,
       });
     }
 
@@ -483,10 +500,12 @@ router.put('/batch-restore', authMiddleware, requirePermission('idle:restore'), 
     const successDevices = idleDevices.filter(d =>
       results.some(r => r.deviceId === d.deviceId && r.status === 'success')
     );
+    // 通过 deviceId 关联 results，取出更新前保存的原空闲原因
+    const reasonMap = new Map(results.map(r => [r.deviceId, r.previousIdleReason || '未填写']));
     const deviceSummary = successDevices
       .map(
         d =>
-          `${d.name}(编号:${d.deviceId}${d.type ? `,类型:${d.type}` : ''}${d.ipAddress ? `,IP:${d.ipAddress}` : ''})`
+          `${d.name}(编号:${d.deviceId}${d.type ? `,类型:${d.type}` : ''}${d.ipAddress ? `,IP:${d.ipAddress}` : ''},原空闲原因:${reasonMap.get(d.deviceId) || '未填写'})`
       )
       .join('、');
 
@@ -618,17 +637,29 @@ router.put('/:deviceId/shelve', authMiddleware, requirePermission('idle:shelve')
       roomName: updatedDevice.Rack?.Room?.name,
     };
 
+    // 上架描述需带上原空闲原因（从更新前快照取值，否则已被清空为 null）
+    const previousIdleReason = beforeState.idleReason;
+    const positionText = position ? `U${position}` : '未指定位置';
+    const idleReasonText = previousIdleReason
+      ? `，原空闲原因：${previousIdleReason}`
+      : '，原空闲原因：未填写';
+
     await logDeviceOperation(
       'shelve',
       generateDeviceDescription('空闲设备上架', deviceData, { includePosition: false }) +
-        `到机柜【${targetRack.name}】U${position}`,
+        `到机柜【${targetRack.name}】${positionText}${idleReasonText}`,
       {
         targetId: device.deviceId,
         targetName: device.name,
         beforeState: { ...beforeState, isIdle: true },
         afterState: deviceData,
         req,
-        metadata: buildDeviceMetadata(deviceData, { rackId, position, type: 'idle_device_shelve' }),
+        metadata: buildDeviceMetadata(deviceData, {
+          rackId,
+          position,
+          type: 'idle_device_shelve',
+          previousIdleReason,
+        }),
       }
     );
 
@@ -767,6 +798,9 @@ router.put('/:deviceId/restore', authMiddleware, requirePermission('idle:restore
       return res.status(400).json({ error: positionCheck.reason });
     }
 
+    // 保存更新前快照，用于在描述中体现原空闲原因
+    const beforeState = device.toJSON();
+
     await device.update(
       {
         isIdle: false,
@@ -800,20 +834,27 @@ router.put('/:deviceId/restore', authMiddleware, requirePermission('idle:restore
       roomName: updatedDevice.Rack?.Room?.name,
     };
 
+    // 恢复描述需带上原空闲原因（从更新前快照取值，避免被清空为 null）
+    const previousIdleReason = beforeState.idleReason;
+    const idleReasonText = previousIdleReason
+      ? `，原空闲原因：${previousIdleReason}`
+      : '，原空闲原因：未填写';
+
     await logDeviceOperation(
       'restore',
       generateDeviceDescription('空闲设备恢复', deviceData, { includePosition: false }) +
-        `到机柜【${targetRack.name}】U${targetPosition}`,
+        `到机柜【${targetRack.name}】U${targetPosition}${idleReasonText}`,
       {
         targetId: device.deviceId,
         targetName: device.name,
-        beforeState: { ...device.toJSON(), isIdle: true },
+        beforeState: { ...beforeState, isIdle: true },
         afterState: deviceData,
         req,
         metadata: buildDeviceMetadata(deviceData, {
           targetRackId,
           targetPosition,
           type: 'idle_device_restore',
+          previousIdleReason,
         }),
       }
     );
