@@ -28,7 +28,6 @@
     - [Linux 一键部署](#linux-一键部署)
     - [Windows 部署](#windows-部署)
   - [环境要求](#环境要求)
-    - [生产环境额外要求](#生产环境额外要求)
   - [脚本命令参考](#脚本命令参考)
     - [install.js - 安装脚本](#installjs---安装脚本)
     - [update.js - 更新脚本](#updatejs---更新脚本)
@@ -61,15 +60,15 @@
 ### Linux 一键部署
 
 ```bash
-# 克隆项目
-git clone https://gitee.com/zhang96110/idc_assest.git
+# 克隆项目（GitHub 主仓库）
+git clone https://github.com/gituib/idc_assest.git
 cd idc_assest
 
 # 运行安装脚本（自动安装 Node.js）
 ./install.sh
 
 # 或一键安装（无需克隆）
-curl -fsSL https://gitee.com/zhang96110/idc_assest/raw/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gituib/idc_assest/main/install.sh | bash
 ```
 
 **install.sh 自动完成**：
@@ -97,21 +96,16 @@ npm run deploy
 
 ## 环境要求
 
-| 项目          | 最低要求                        | 推荐配置     |
-| ----------- | --------------------------- | -------- |
-| **操作系统**    | Windows 10+、macOS 12+、Linux | 同最低      |
-| **Node.js** | ≥14.0.0                     | 20.x LTS |
-| **npm**     | ≥6.0.0                      | 10.x     |
-| **内存**      | 4GB                         | 8GB+     |
-| **磁盘**      | 2GB                         | 10GB+    |
-
-**生产环境额外要求**：
-
-| 项目      | 要求                     |
-| ------- | ---------------------- |
-| 数据库     | MySQL 8.0+（推荐）或 SQLite |
-| Web 服务器 | Nginx 1.18+            |
-| 进程管理    | PM2 5.x+               |
+| 项目          | 最低要求                        | 推荐配置     | 生产环境额外要求        |
+| ----------- | --------------------------- | -------- | --------------- |
+| **操作系统**    | Windows 10+、macOS 12+、Linux | 同最低      | -               |
+| **Node.js** | ≥14.0.0                     | 20.x LTS | 同最低            |
+| **npm**     | ≥6.0.0                      | 10.x     | 同最低            |
+| **内存**      | 4GB                         | 8GB+     | 8GB+（视规模）      |
+| **磁盘**      | 2GB                         | 10GB+    | 40GB+（视规模）     |
+| **数据库**     | -                           | -        | MySQL 8.0+（推荐）或 SQLite |
+| **Web 服务器** | -                           | -        | Nginx 1.18+      |
+| **进程管理**    | -                           | -        | PM2 5.x+         |
 
 ***
 
