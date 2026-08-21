@@ -63,6 +63,61 @@ const getPasswordStrength = (password) => {
   return { score: clamped, label: '非常强', color: '#1677ff' };
 };
 
+/** 主题主色渐变（与全局 useDesignTokens 主色 #6366f1 保持一致） */
+const PRIMARY_GRADIENT = 'linear-gradient(135deg, #6366f1 0%, #764ba2 100%)';
+/** 分组标题主色 */
+const SECTION_COLOR = '#6366f1';
+
+// ===== 弹窗分组标题样式 =====
+const sectionTitleStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+};
+const sectionTitleAccent = {
+  width: '3px',
+  height: '14px',
+  borderRadius: '2px',
+  background: PRIMARY_GRADIENT,
+};
+const sectionTitleIcon = {
+  color: SECTION_COLOR,
+  fontSize: 16,
+  lineHeight: 0,
+};
+const sectionTitleText = {
+  fontWeight: 600,
+  fontSize: 14,
+  color: '#1f2937',
+  whiteSpace: 'nowrap',
+};
+const sectionTitleLine = {
+  flex: 1,
+  height: 1,
+  marginLeft: 4,
+  background: '#ececf1',
+  minWidth: 20,
+};
+
+/**
+ * 弹窗分组标题（统一配色与分隔线，确保视觉协调）
+ * @param {Object} props - 组件属性
+ * @param {ReactNode} props.icon - 分组图标
+ * @param {string} props.title - 分组标题文本
+ * @param {boolean} props.first - 是否为表单第一个分组（缩小上间距）
+ * @returns {JSX.Element} 分组标题
+ */
+const SectionTitle = ({ icon, title, first }) => (
+  <div
+    style={{ ...sectionTitleStyle, margin: first ? '0 0 16px 0' : '24px 0 16px 0' }}
+  >
+    <span style={sectionTitleAccent} />
+    <span style={sectionTitleIcon}>{icon}</span>
+    <span style={sectionTitleText}>{title}</span>
+    <span style={sectionTitleLine} />
+  </div>
+);
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -551,7 +606,7 @@ const UserManagement = () => {
     fontSize: '24px',
     fontWeight: '700',
     margin: 0,
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: PRIMARY_GRADIENT,
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
@@ -573,9 +628,9 @@ const UserManagement = () => {
   const primaryButtonStyle = {
     height: '40px',
     borderRadius: '8px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: PRIMARY_GRADIENT,
     border: 'none',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.35)',
+    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
     fontWeight: '500',
     transition: 'all 0.3s ease',
   };
@@ -605,7 +660,7 @@ const UserManagement = () => {
   const modalHeaderAccent = {
     width: '4px',
     height: '20px',
-    background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
+    background: PRIMARY_GRADIENT,
     borderRadius: '2px',
   };
 
@@ -736,10 +791,7 @@ const UserManagement = () => {
           }}
         >
           {/* ===== 基本信息 ===== */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <IdcardOutlined style={{ color: '#667eea', fontSize: '16px' }} />
-            <span style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>基本信息</span>
-          </div>
+          <SectionTitle icon={<IdcardOutlined />} title="基本信息" first />
 
           <Row gutter={16}>
             <Col span={12}>
@@ -773,44 +825,39 @@ const UserManagement = () => {
             </Col>
           </Row>
 
-          <Divider style={{ margin: '0 0 16px 0' }} />
-
           {/* ===== 联系方式 ===== */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <MailOutlined style={{ color: '#667eea', fontSize: '16px' }} />
-            <span style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>联系方式</span>
-          </div>
+          <SectionTitle icon={<MailOutlined />} title="联系方式" />
 
-          <Form.Item
-            name="email"
-            label="邮箱"
-            rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱地址' },
-            ]}
-          >
-            <Input
-              placeholder="请输入邮箱地址"
-              prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
-              style={{ borderRadius: '8px' }}
-            />
-          </Form.Item>
-
-          <Form.Item name="phone" label="手机号">
-            <Input
-              placeholder="请输入手机号（选填）"
-              prefix={<PhoneOutlined style={{ color: '#bfbfbf' }} />}
-              style={{ borderRadius: '8px' }}
-            />
-          </Form.Item>
-
-          <Divider style={{ margin: '0 0 16px 0' }} />
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="email"
+                label="邮箱"
+                rules={[
+                  { required: true, message: '请输入邮箱' },
+                  { type: 'email', message: '请输入有效的邮箱地址' },
+                ]}
+              >
+                <Input
+                  placeholder="请输入邮箱地址"
+                  prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="phone" label="手机号">
+                <Input
+                  placeholder="手机号（选填）"
+                  prefix={<PhoneOutlined style={{ color: '#bfbfbf' }} />}
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
           {/* ===== 权限与安全 ===== */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <SafetyOutlined style={{ color: '#667eea', fontSize: '16px' }} />
-            <span style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>权限与安全</span>
-          </div>
+          <SectionTitle icon={<SafetyOutlined />} title="权限与安全" />
 
           <Form.Item
             name="roleIds"
@@ -879,7 +926,13 @@ const UserManagement = () => {
               name="newPassword"
               label="新密码"
               rules={[{ min: 6, message: '密码长度不能少于6个字符' }]}
-              help="留空则不修改密码"
+              help={
+                <span>
+                  留空则不修改密码
+                  <br />
+                  如需强制重置密码，请使用列表中的「重置密码」按钮
+                </span>
+              }
             >
               <Input.Password
                 placeholder="留空则不修改密码"
@@ -908,7 +961,7 @@ const UserManagement = () => {
                   setModalVisible(false);
                   setPasswordStrength({ score: 0, label: '', color: '' });
                 }}
-                style={{ borderRadius: '8px', height: '40px', paddingLeft: '20px', paddingRight: '20px' }}
+                style={{ borderRadius: '8px' }}
               >
                 取消
               </Button>
@@ -918,14 +971,13 @@ const UserManagement = () => {
                 loading={submitting}
                 disabled={submitting}
                 style={{
-                  height: '40px',
                   borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: PRIMARY_GRADIENT,
                   border: 'none',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.35)',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
                   fontWeight: '500',
-                  paddingLeft: '28px',
-                  paddingRight: '28px',
+                  paddingLeft: '24px',
+                  paddingRight: '24px',
                 }}
               >
                 {editingUser ? '保存修改' : '创建用户'}

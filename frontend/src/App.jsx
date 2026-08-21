@@ -28,6 +28,8 @@ import {
   LogoutOutlined,
   HistoryOutlined,
   AuditOutlined,
+  SwapOutlined,
+  ApartmentOutlined,
   ToolOutlined,
   ScheduleOutlined,
   SettingOutlined,
@@ -198,11 +200,10 @@ const AppLayout = ({ children }) => {
     if (path === '/') return 'dashboard';
     if (path.startsWith('/visualization-3d')) return 'visualization-3d';
     if (path.startsWith('/rooms') || path.startsWith('/racks')) return 'room-management';
+    if (path.startsWith('/cables') || path.startsWith('/ports')) return 'line-management';
     if (
       path.startsWith('/devices') ||
       path.startsWith('/fields') ||
-      path.startsWith('/cables') ||
-      path.startsWith('/ports') ||
       path.startsWith('/idle-devices')
     )
       return 'asset-management';
@@ -239,7 +240,7 @@ const AppLayout = ({ children }) => {
         ...(hasPermission('floorplan') ? [{ key: 'floor-plan', icon: <LayoutOutlined style={{ fontSize: '16px' }} />, label: <Link to="/floor-plan">机房平面图</Link> }] : []),
       ].filter(Boolean),
     }] : []),
-    ...(hasPermission('device:view') || hasPermission('idle:view') || hasPermission('field:page') || hasPermission('port:view') || hasPermission('cable:view') ? [{
+    ...(hasPermission('device:view') || hasPermission('idle:view') || hasPermission('field:page') ? [{
       key: 'asset-management',
       icon: <BuildOutlined style={{ fontSize: '18px' }} />,
       label: '资产管理',
@@ -247,8 +248,15 @@ const AppLayout = ({ children }) => {
         ...(hasPermission('device:view') ? [{ key: 'devices', icon: <CloudServerOutlined style={{ fontSize: '16px' }} />, label: <Link to="/devices">设备管理</Link> }] : []),
         ...(hasPermission('idle:view') ? [{ key: 'idle-devices', icon: <CloudServerOutlined style={{ fontSize: '16px' }} />, label: <Link to="/idle-devices">空闲设备</Link> }] : []),
         ...(hasPermission('field:page') ? [{ key: 'fields', icon: <DatabaseOutlined style={{ fontSize: '16px' }} />, label: <Link to="/fields">字段管理</Link> }] : []),
+      ].filter(Boolean),
+    }] : []),
+    ...(hasPermission('port:view') || hasPermission('cable:view') ? [{
+      key: 'line-management',
+      icon: <ApartmentOutlined style={{ fontSize: '18px' }} />,
+      label: '线路管理',
+      children: [
         ...(hasPermission('port:view') ? [{ key: 'ports', icon: <PartitionOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ports">端口管理</Link> }] : []),
-        ...(hasPermission('cable:view') ? [{ key: 'cables', icon: <ApiOutlined style={{ fontSize: '16px' }} />, label: <Link to="/cables">接线管理</Link> }] : []),
+        ...(hasPermission('cable:view') ? [{ key: 'cables', icon: <SwapOutlined style={{ fontSize: '16px' }} />, label: <Link to="/cables">接线管理</Link> }] : []),
       ].filter(Boolean),
     }] : []),
     ...(hasPermission('consumable:view') || hasPermission('consumable:stats') || hasPermission('consumable:category') || hasPermission('consumable:log') ? [{
@@ -267,9 +275,9 @@ const AppLayout = ({ children }) => {
       icon: <ToolOutlined style={{ fontSize: '18px' }} />,
       label: '工单管理',
       children: [
-        ...(hasPermission('ticket:view') ? [{ key: 'tickets', icon: <ScheduleOutlined style={{ fontSize: '16px' }} />, label: <Link to="/tickets">工单列表</Link> }] : []),
-        ...(hasPermission('ticket:category') ? [{ key: 'ticket-categories', icon: <InboxOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ticket-categories">故障分类</Link> }] : []),
         ...(hasPermission('ticket:stats') ? [{ key: 'ticket-statistics', icon: <BarChartOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ticket-statistics">统计报表</Link> }] : []),
+        ...(hasPermission('ticket:view') ? [{ key: 'tickets', icon: <ScheduleOutlined style={{ fontSize: '16px' }} />, label: <Link to="/tickets">故障工单</Link> }] : []),
+        ...(hasPermission('ticket:category') ? [{ key: 'ticket-categories', icon: <InboxOutlined style={{ fontSize: '16px' }} />, label: <Link to="/ticket-categories">故障分类</Link> }] : []),
       ].filter(Boolean),
     }] : []),
     ...(hasPermission('inventory:plan') || hasPermission('inventory:pending') ? [{
@@ -289,19 +297,29 @@ const AppLayout = ({ children }) => {
       children: [
         ...(hasPermission('user:view') ? [{ key: 'users', icon: <UserOutlined style={{ fontSize: '16px' }} />, label: <Link to="/users">用户管理</Link> }] : []),
         ...(hasPermission('role:view') ? [{ key: 'roles', icon: <SafetyOutlined style={{ fontSize: '16px' }} />, label: <Link to="/roles">角色管理</Link> }] : []),
-        ...(hasPermission('settings:view') ? [{ key: 'system-settings', icon: <SettingOutlined style={{ fontSize: '16px' }} />, label: <Link to="/settings">系统设置</Link> }] : []),
         ...(hasPermission('backup:view') ? [{ key: 'backup', icon: <DatabaseOutlined style={{ fontSize: '16px' }} />, label: <Link to="/backup">数据备份</Link> }] : []),
         ...(hasPermission('log:view') ? [{ key: 'operation-logs', icon: <AuditOutlined style={{ fontSize: '16px' }} />, label: <Link to="/operation-logs">操作日志</Link> }] : []),
+        ...(hasPermission('settings:view') ? [{ key: 'system-settings', icon: <SettingOutlined style={{ fontSize: '16px' }} />, label: <Link to="/settings">系统设置</Link> }] : []),
       ].filter(Boolean),
     }] : []),
   ].filter(Boolean), [hasPermission]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <style>{`
+        /* 让侧边栏的子容器变为纵向 flex，保证菜单区滚动、收起按钮固定在底部不消失 */
+        .app-sider .ant-layout-sider-children {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          overflow: hidden;
+        }
+      `}</style>
       <Sider
-        width={240}
+        width={216}
         collapsedWidth={72}
         collapsed={collapsed}
+        className="app-sider"
         style={{
           background: designTokens.colors.sidebar.bg,
           boxShadow: '2px 0 8px rgba(0, 0, 0, 0.06)',
@@ -320,23 +338,28 @@ const AppLayout = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            padding: collapsed ? '16px 0' : '16px 20px',
+            padding: collapsed ? '18px 0' : '20px 14px',
             borderBottom: `1px solid ${designTokens.colors.sidebar.border}`,
-            minHeight: '64px',
+            minHeight: '76px',
+            flexShrink: 0,
             background: designTokens.colors.sidebar.bg,
+            gap: '12px',
           }}
         >
           <div
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: designTokens.borderRadius.small,
+              width: '40px',
+              height: '40px',
+              borderRadius: 12,
               background: siteLogo ? 'transparent' : designTokens.colors.primary.gradient,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
               overflow: 'hidden',
+              boxShadow: siteLogo
+                ? 'none'
+                : `0 4px 12px ${designTokens.colors.primary.gradientShadow || 'rgba(102,126,234,0.4)'}`,
             }}
           >
             {siteLogo ? (
@@ -347,26 +370,45 @@ const AppLayout = ({ children }) => {
                 onError={e => { e.target.style.display = 'none'; }}
               />
             ) : (
-              <CloudServerOutlined style={{ fontSize: '18px', color: '#ffffff' }} />
+              <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+                {/* 服务器机柜三层挡板 */}
+                <rect x="4" y="5" width="16" height="5" rx="1.4" fill="#ffffff" />
+                <rect x="4" y="11.5" width="16" height="5" rx="1.4" fill="#ffffff" opacity="0.82" />
+                <rect x="4" y="18" width="16" height="5" rx="1.4" fill="#ffffff" opacity="0.62" />
+                {/* 状态指示灯：运行/正常/待机 */}
+                <circle cx="17.5" cy="7.5" r="1.5" fill="#FFD54F" />
+                <circle cx="17.5" cy="14" r="1.5" fill="#69F0AE" />
+                <circle cx="17.5" cy="20.5" r="1.5" fill="#40C4FF" />
+              </svg>
             )}
           </div>
           {!collapsed && (
-            <div>
+            <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
               <div
+                title={config.site_name || 'IDC管理'}
                 style={{
-                  fontSize: '15px',
-                  fontWeight: '600',
+                  fontSize: '16px',
+                  fontWeight: '700',
                   color: designTokens.colors.primary.main,
-                  lineHeight: 1.2,
+                  lineHeight: 1.3,
+                  letterSpacing: '0.3px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {config.site_name || 'IDC管理'}
               </div>
               <div
+                title="数据中心管理平台"
                 style={{
                   fontSize: '11px',
                   color: designTokens.colors.sidebar.text,
-                  marginTop: '2px',
+                  marginTop: '3px',
+                  letterSpacing: '1px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 数据中心管理平台
@@ -377,7 +419,7 @@ const AppLayout = ({ children }) => {
 
         <div
           style={{
-            padding: collapsed ? '12px 0' : '12px 8px',
+            padding: collapsed ? '16px 0' : '18px 12px 24px',
             overflowY: 'auto',
             flex: 1,
           }}
@@ -397,8 +439,9 @@ const AppLayout = ({ children }) => {
 
         <div
           style={{
-            padding: '12px',
+            padding: '14px 12px',
             borderTop: `1px solid ${designTokens.colors.sidebar.border}`,
+            flexShrink: 0,
           }}
         >
           <Button
@@ -407,18 +450,18 @@ const AppLayout = ({ children }) => {
             onClick={() => setCollapsed(!collapsed)}
             style={{
               width: '100%',
-              height: '40px',
+              height: '46px',
               color: designTokens.colors.text.secondary,
-              fontSize: '16px',
+              fontSize: '17px',
               borderRadius: designTokens.borderRadius.small,
               display: 'flex',
               alignItems: 'center',
               justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: '8px',
+              gap: '10px',
             }}
           >
             {!collapsed && (
-              <span style={{ fontSize: '13px', color: designTokens.colors.text.secondary }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: designTokens.colors.text.secondary }}>
                 收起菜单
               </span>
             )}
@@ -428,7 +471,7 @@ const AppLayout = ({ children }) => {
 
       <Layout
         style={{
-          marginLeft: collapsed ? 72 : 240,
+          marginLeft: collapsed ? 72 : 216,
           transition: 'margin-left 0.2s ease',
         }}
       >
@@ -605,7 +648,19 @@ const ThemeConfig = () => {
   };
 
   return (
-    <AntdConfigProvider theme={{ token: designTokens }}>
+    <AntdConfigProvider
+      theme={{
+        token: designTokens,
+        components: {
+          Menu: {
+            itemHeight: 46,
+            itemMarginBlock: 4,
+            itemBorderRadius: 8,
+            iconMarginInlineEnd: 12,
+          },
+        },
+      }}
+    >
       <SWRConfig value={swrConfig}>
         <Router>
           <MaintenanceBanner />

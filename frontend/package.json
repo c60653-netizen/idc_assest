@@ -1,9 +1,9 @@
 {
   "name": "idc-frontend",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "IDC设备管理系统前端",
   "author": "gituib",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/gituib/idc_assest#readme",
   "repository": {
     "type": "git",

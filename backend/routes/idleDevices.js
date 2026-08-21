@@ -580,6 +580,13 @@ router.put('/:deviceId/shelve', authMiddleware, requirePermission('idle:shelve')
       return res.status(400).json({ error: '请选择目标机柜' });
     }
 
+    // U 位为必填项，空值会导致原 U 位信息被覆盖丢失（历史问题：上架时未填位置覆盖 position）
+    const parsedPosition = parseInt(position, 10);
+    if (!parsedPosition || parsedPosition <= 0) {
+      await t.rollback();
+      return res.status(400).json({ error: '请选择可用的U位位置' });
+    }
+
     const targetRack = await Rack.findByPk(rackId, { transaction: t });
     if (!targetRack) {
       await t.rollback();

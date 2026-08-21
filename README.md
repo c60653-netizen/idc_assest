@@ -1,6 +1,6 @@
 # IDC设备资产管理系统
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://react.dev/)
 
@@ -556,7 +556,22 @@ git push origin feature/your-feature
 
 ## 许可证
 
-本项目基于 **MIT 许可证**开源。
+本项目采用**双授权（Dual Licensing）**模式：
+
+### 开源通道（GPL-3.0）
+
+- 遵循 [GNU GPL v3.0](LICENSE) 许可协议：任何个人或组织可免费使用、修改、二次开发、分发。
+- **条件**：衍生作品必须以 GPL-3.0 协议开源并公开源代码。
+
+### 商业通道（商业授权）
+
+- 凡**不符合 GPL-3.0 要求**的商业使用或闭源二次开发，**必须**获得授权方 gituib 的[商业授权](LICENSE-COMMERCIAL.md)。
+- 适用场景包括：闭源分发/销售、封装进闭源商业产品、对外提供商业化部署服务、企业内部闭源商业化运营等。
+- 商业授权为非独占许可，付费后可使用、修改、分发并闭源集成本软件，详见 [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md)。
+
+> 版权 © 2026 gituib（<https://github.com/gituib> · <https://gitee.com/zhang96110>）
+>
+> 如需商业授权，请联系：849185023@qq.com 或 <https://github.com/gituib> / <https://gitee.com/zhang96110>
 
 ***
 

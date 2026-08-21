@@ -204,7 +204,8 @@ const IdleDeviceManagement = () => {
       powerConsumption: record.powerConsumption,
       roomId: roomId,
       rackId: record.rackId,
-      position: null,
+      // 回填原 U 位作为默认值，用户可自行调整，避免重新上架时被覆盖为空而丢失
+      position: record.position || null,
       description: record.description,
     });
     if (record.rackId) {
@@ -1117,7 +1118,11 @@ const IdleDeviceManagement = () => {
                 </Form.Item>
               </Col>
               <Col span={8}>
-                <Form.Item name="rackId" label="机柜">
+                <Form.Item
+                  name="rackId"
+                  label="机柜"
+                  rules={[{ required: true, message: '请选择机柜' }]}
+                >
                   <Select
                     placeholder={selectedShelveRoomId ? '请选择机柜' : '请先选择机房'}
                     disabled={!selectedShelveRoomId}
@@ -1135,7 +1140,11 @@ const IdleDeviceManagement = () => {
                 </Form.Item>
               </Col>
               <Col span={8}>
-                <Form.Item name="position" label="U位">
+                <Form.Item
+                  name="position"
+                  label="U位"
+                  rules={[{ required: true, message: '请输入U位位置' }]}
+                >
                   <Input
                     type="number"
                     placeholder="请输入U位"
