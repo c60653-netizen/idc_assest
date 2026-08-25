@@ -1002,6 +1002,21 @@ export const generateGlobalStyles = tokens => `
   .device-modal .ant-form-item-label > label::after {
     content: '';
   }
+
+  /* 弹窗进场过渡 */
+  .device-modal.ant-modal {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .device-modal .ant-btn-primary:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 8px 20px -8px rgba(99, 102, 241, 0.6) !important;
+    transform: translateY(-1px);
+  }
+
+  .device-modal .ant-btn-primary:active {
+    transform: translateY(0);
+  }
   
   @media screen and (max-width: 768px) {
     .device-table-wrapper .ant-table-tbody > tr > td {

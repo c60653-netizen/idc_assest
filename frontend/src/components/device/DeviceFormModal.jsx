@@ -30,9 +30,25 @@ const { Option } = Select;
 const modalHeaderStyle = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: '12px',
   fontSize: '18px',
   fontWeight: 600,
+  color: designTokens.colors.text.primary,
+};
+
+// 头部图标胶囊：软渐变底 + 圆角，增强层次感
+const headerIconStyle = {
+  width: '34px',
+  height: '34px',
+  borderRadius: '10px',
+  background: designTokens.colors.primary.gradient,
+  color: '#ffffff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '16px',
+  boxShadow: designTokens.shadows.medium,
+  flexShrink: 0,
 };
 
 const inputStyle = {
@@ -314,26 +330,51 @@ const DeviceFormModal = ({
           <Col span={24} key="room-rack-section">
             <div
               style={{
-                background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%)',
-                borderRadius: '12px',
-                padding: '20px',
-                marginBottom: '16px',
-                border: '2px solid #d6e4ff',
-                boxShadow: '0 2px 8px rgba(24, 144, 255, 0.1)',
+                background:
+                  'linear-gradient(160deg, #f5f7ff 0%, #eef6ff 100%)',
+                borderRadius: '14px',
+                padding: '20px 20px 20px',
+                marginBottom: '20px',
+                border: `1px solid ${designTokens.colors.primary.bg}`,
+                boxShadow: '0 4px 16px -6px rgba(99, 102, 241, 0.18)',
               }}
             >
               <div
                 style={{
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#1890ff',
-                  marginBottom: '16px',
+                  color: designTokens.colors.primary.main,
+                  marginBottom: '20px',
                   display: 'flex',
                   alignItems: 'center',
+                  gap: '8px',
                 }}
               >
-                <DatabaseOutlined style={{ marginRight: '8px' }} />
+                <span
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '6px',
+                    background: designTokens.colors.primary.gradient,
+                    color: '#ffffff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                  }}
+                >
+                  <DatabaseOutlined />
+                </span>
                 设备位置选择
+                <span
+                  style={{
+                    flex: 1,
+                    height: '1px',
+                    marginLeft: '4px',
+                    background:
+                      'linear-gradient(90deg, rgba(99,102,241,0.25), rgba(99,102,241,0))',
+                  }}
+                />
               </div>
               <Row gutter={16}>
                 <Col span={12}>
@@ -509,11 +550,9 @@ const DeviceFormModal = ({
     <Modal
       title={
         <div style={{ ...modalHeaderStyle, paddingRight: '32px' }}>
-          {editingDevice ? (
-            <EditOutlined style={{ color: '#667eea' }} />
-          ) : (
-            <PlusOutlined style={{ color: '#667eea' }} />
-          )}
+          <span style={headerIconStyle}>
+            {editingDevice ? <EditOutlined /> : <PlusOutlined />}
+          </span>
           {editingDevice ? '编辑设备' : '添加设备'}
         </div>
       }
@@ -525,10 +564,18 @@ const DeviceFormModal = ({
       styles={{
         header: {
           borderBottom: '1px solid #f0f0f0',
-          padding: '16px 24px',
+          padding: '20px 24px',
           position: 'relative',
+          background:
+            'linear-gradient(180deg, rgba(99,102,241,0.04) 0%, rgba(255,255,255,0) 100%)',
         },
-        body: { padding: '24px' },
+        body: { padding: '28px 24px 24px' },
+        content: {
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow:
+            '0 24px 48px -12px rgba(15,23,42,0.25), 0 8px 16px -8px rgba(15,23,42,0.15)',
+        },
       }}
       className="device-modal"
     >
@@ -552,7 +599,21 @@ const DeviceFormModal = ({
               borderRadius: '8px',
               padding: '0 24px',
               fontWeight: '500',
+              color: designTokens.colors.text.secondary,
+              border: '1px solid #e5e7eb',
+              background: designTokens.colors.background.primary,
+              boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
               transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = designTokens.colors.background.tertiary;
+              e.currentTarget.style.color = designTokens.colors.text.primary;
+              e.currentTarget.style.borderColor = designTokens.colors.border.medium;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = designTokens.colors.background.primary;
+              e.currentTarget.style.color = designTokens.colors.text.secondary;
+              e.currentTarget.style.borderColor = '#e5e7eb';
             }}
           >
             取消
@@ -566,7 +627,7 @@ const DeviceFormModal = ({
               background: designTokens.colors.primary.gradient,
               border: 'none',
               color: '#ffffff',
-              boxShadow: designTokens.shadows.small,
+              boxShadow: '0 6px 16px -6px rgba(99, 102, 241, 0.5)',
               fontWeight: '500',
               display: 'inline-flex',
               alignItems: 'center',

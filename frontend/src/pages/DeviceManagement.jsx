@@ -31,6 +31,7 @@ import {
   FilterOutlined,
   UnorderedListOutlined,
   SafetyCertificateOutlined,
+  QrcodeOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -70,6 +71,8 @@ import {
   BatchStatusModal,
   BatchWarrantyModal,
 } from '../components/device';
+import DeviceQrModal from '../components/DeviceQrModal';
+import DeviceQrBatchModal from '../components/DeviceQrBatchModal';
 import { useDebounce } from '../hooks/useDebounce';
 import { getDeviceTypeIcon, getStatusConfig, processDeviceData } from '../utils/deviceUtils.jsx';
 
@@ -131,6 +134,10 @@ function DeviceManagement() {
 
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+
+  // 设备二维码弹窗：qrModalDevice 为当前打开弹窗的设备（null 表示关闭），qrBatchOpen 控制批量弹窗
+  const [qrModalDevice, setQrModalDevice] = useState(null);
+  const [qrBatchOpen, setQrBatchOpen] = useState(false);
   const [columnWidths, setColumnWidths] = useState({});
   const [advancedSearchVisible, setAdvancedSearchVisible] = useState(false);
 
@@ -441,6 +448,29 @@ function DeviceManagement() {
     setDetailModalVisible(true);
   };
 
+  /**
+   * 为二维码弹窗构造设备对象：将嵌套的机柜/机房名称平铺为 rackName/roomName
+   * @param {Object} device - 表格行设备数据（机柜/机房为 Rack/Room 嵌套对象）
+   * @returns {Object} 带 rackName/roomName 平铺属性的设备对象
+   */
+  const buildQrDevice = device => ({
+    ...device,
+    rackName: device?.Rack?.name,
+    roomName: device?.Rack?.Room?.name,
+  });
+
+  /**
+   * 打开批量二维码弹窗：未勾选设备时提示
+   * @returns {void}
+   */
+  const handleBatchQr = () => {
+    if (selectedDevices.length === 0) {
+      message.warning('请先勾选设备');
+      return;
+    }
+    setQrBatchOpen(true);
+  };
+
   const handleViewDeviceTickets = device => {
     navigate(
       `/tickets?deviceId=${device.deviceId}&deviceName=${encodeURIComponent(device.name)}&serialNumber=${encodeURIComponent(device.serialNumber || '')}&view=true`
@@ -680,6 +710,16 @@ function DeviceManagement() {
     setSelectAll(selectedRowKeys.length === allDevices.length && allDevices.length > 0);
   };
 
+  // 批量二维码设备列表：selectedDevices 存的是 deviceId 数组，需从 allDevices 查找完整对象并平铺位置字段
+  const qrDevicesForBatch = useMemo(
+    () =>
+      selectedDevices
+        .map(id => allDevices.find(device => device.deviceId === id))
+        .filter(Boolean)
+        .map(device => buildQrDevice(device)),
+    [selectedDevices, allDevices]
+  );
+
   const handleHeaderCellResize = key => column => ({
     width: column.width,
     onResize: width => {
@@ -850,7 +890,7 @@ function DeviceManagement() {
     generatedColumns.push({
       title: '操作',
       key: 'action',
-      width: columnWidths.action || 80,
+      width: columnWidths.action || 110,
       minWidth: 60,
       maxWidth: 100,
       onHeaderCell: handleHeaderCellResize('action'),
@@ -873,6 +913,19 @@ function DeviceManagement() {
               onClick={() => handleDelete(record.deviceId)}
               size="small"
               style={{ padding: '4px 8px' }}
+            />
+          </Tooltip>
+          <Tooltip title="二维码">
+            <Button
+              type="text"
+              icon={<QrcodeOutlined />}
+              onClick={e => {
+                // 阻止冒泡，避免触发行点击选中
+                e.stopPropagation();
+                setQrModalDevice(buildQrDevice(record));
+              }}
+              size="small"
+              style={{ color: '#1890ff', padding: '4px 8px' }}
             />
           </Tooltip>
         </div>
@@ -966,6 +1019,17 @@ function DeviceManagement() {
               onClick={showBatchWarrantyModal}
             >
               维保更新 ({selectedDevices.length})
+            </Button>
+            <Button
+              style={{
+                ...secondaryActionStyle,
+                color: '#13c2c2',
+                borderColor: '#13c2c2',
+              }}
+              icon={<QrcodeOutlined />}
+              onClick={handleBatchQr}
+            >
+              生成二维码
             </Button>
             <Button
               style={{
@@ -1425,6 +1489,18 @@ function DeviceManagement() {
         loading={batchWarrantyLoading}
         onSubmit={handleBatchWarrantyUpdate}
         onCancel={() => setBatchWarrantyModalVisible(false)}
+      />
+
+      {/* 设备二维码弹窗：单个设备 / 批量生成 */}
+      <DeviceQrModal
+        open={Boolean(qrModalDevice)}
+        device={qrModalDevice}
+        onClose={() => setQrModalDevice(null)}
+      />
+      <DeviceQrBatchModal
+        open={qrBatchOpen}
+        devices={qrDevicesForBatch}
+        onClose={() => setQrBatchOpen(false)}
       />
 
       {/* 标记为空闲弹窗：要求填写空闲原因/备注 */}

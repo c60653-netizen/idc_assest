@@ -1,6 +1,6 @@
 {
   "name": "idc-frontend",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "IDC设备管理系统前端",
   "author": "gituib",
   "license": "GPL-3.0-or-later",
@@ -38,6 +38,7 @@
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "papaparse": "^5.5.3",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.15.0",

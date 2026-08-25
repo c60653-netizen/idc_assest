@@ -117,6 +117,10 @@ const routesConfig = [
     file: 'portOptions.js',
     path: '/api/port-options',
   },
+  {
+    file: 'public.js',
+    path: '/p',
+  },
 ];
 
 module.exports = routesConfig;

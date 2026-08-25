@@ -1323,3 +1323,19 @@ body {
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
+
+/* 设备二维码信息牌打印样式：仅打印信息卡区域 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #device-qr-preview,
+  #device-qr-preview * {
+    visibility: visible;
+  }
+  #device-qr-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
