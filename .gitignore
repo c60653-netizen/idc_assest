@@ -116,6 +116,7 @@ backend/config/remote-backup-configs.json
 # Misc (其他)
 # ==============================================
 .trae/
+.trae-html-share-packages/
 .vercel/
 3d-datacenter-dashboard/
 docs/install-improvement-plan.md
