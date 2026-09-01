@@ -67,6 +67,13 @@ const InventoryTaskExecution = () => {
   const [racks, setRacks] = useState([]);
   const [deviceFields, setDeviceFields] = useState(null); // 初始值改为 null，表示未加载
   const [selectedRoomId, setSelectedRoomId] = useState(null);
+  // 分配盘点员弹窗状态
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [assignTask, setAssignTask] = useState(null); // 当前分配的目标任务
+  const [assignUsers, setAssignUsers] = useState([]); // 可选盘点员列表
+  const [assignLoading, setAssignLoading] = useState(false); // 用户列表加载中
+  const [assignUserId, setAssignUserId] = useState(null); // 选中的盘点员 userId
+  const [assigning, setAssigning] = useState(false); // 提交中状态
 
   const planId = searchParams.get('planId');
 
@@ -94,6 +101,40 @@ const InventoryTaskExecution = () => {
       setActiveTab('2');
     } catch (error) {
       message.error('获取盘点记录失败');
+    }
+  };
+
+  // 打开分配盘点员弹窗并拉取 active 用户
+  const openAssignModal = async record => {
+    setAssignTask(record);
+    setAssignUserId(record.Assignee?.userId || null); // 已分配则默认选中当前盘点员
+    setAssignModalVisible(true);
+    setAssignLoading(true);
+    try {
+      const res = await api.get('/users/all');
+      setAssignUsers(res.data || []);
+    } catch (error) {
+      message.error('加载盘点员列表失败');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  // 提交分配（不选则传 null 表示取消分配）
+  const handleAssign = async () => {
+    if (!assignTask) return;
+    setAssigning(true);
+    try {
+      await api.put(`/inventory/tasks/${assignTask.taskId}`, {
+        assignedTo: assignUserId,
+      });
+      message.success('分配成功');
+      setAssignModalVisible(false);
+      fetchPlan(); // 刷新任务列表
+    } catch (error) {
+      message.error(error.response?.data?.error || '分配盘点员失败');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -793,19 +834,37 @@ const InventoryTaskExecution = () => {
       render: count => (count > 0 ? <Tag color="error">{count}</Tag> : '-'),
     },
     {
+      title: '盘点员',
+      key: 'assignee',
+      width: 110,
+      render: (_, record) => {
+        const name = record.Assignee?.realName;
+        return name ? (
+          name
+        ) : (
+          <span style={{ color: designTokens.colors.text.tertiary }}>未分配</span>
+        );
+      },
+    },
+    {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 160,
       render: (_, record) => (
-        <Button
-          type="link"
-          onClick={() => {
-            setCurrentTask(record);
-            fetchTaskRecords(record.taskId);
-          }}
-        >
-          查看详情
-        </Button>
+        <Space size={0}>
+          <Button
+            type="link"
+            onClick={() => {
+              setCurrentTask(record);
+              fetchTaskRecords(record.taskId);
+            }}
+          >
+            查看详情
+          </Button>
+          <Button type="link" onClick={() => openAssignModal(record)}>
+            {record.Assignee ? '重新分配' : '分配'}
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -2090,6 +2149,46 @@ const InventoryTaskExecution = () => {
             </div>
           </Form>
         </div>
+      </Modal>
+
+      <Modal
+        title="分配盘点员"
+        open={assignModalVisible}
+        closeIcon={<CloseButton />}
+        onCancel={() => setAssignModalVisible(false)}
+        confirmLoading={assigning}
+        width={480}
+        onOk={handleAssign}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600 }}>{assignTask?.targetName}</div>
+          <div style={{ fontSize: '12px', color: designTokens.colors.text.tertiary }}>
+            {assignTask?.targetType === 'room'
+              ? '机房'
+              : assignTask?.targetType === 'rack'
+                ? '机柜'
+                : '全部设备'}
+          </div>
+        </div>
+        <Form layout="vertical">
+          <Form.Item label="盘点员">
+            <Select
+              loading={assignLoading}
+              placeholder="请选择盘点员（不选表示取消分配）"
+              value={assignUserId}
+              onChange={value => setAssignUserId(value)}
+              allowClear
+              optionFilterProp="children"
+              showSearch
+            >
+              {assignUsers.map(user => (
+                <Select.Option key={user.userId} value={user.userId}>
+                  {user.realName || user.username}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

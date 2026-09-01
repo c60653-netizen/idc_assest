@@ -427,6 +427,37 @@ router.post('/plans/:planId/start', requirePermission('inventory:*'), async (req
   }
 });
 
+/**
+ * 获取当前登录用户被分配的库存盘点任务列表
+ * @route GET /api/inventory/my-tasks
+ * @access inventory:*
+ */
+router.get('/my-tasks', requirePermission('inventory:*'), async (req, res) => {
+  try {
+    const tasks = await InventoryTask.findAll({
+      where: { assignedTo: req.user.userId },
+      include: [
+        { model: InventoryPlan, as: 'Plan', attributes: ['planId', 'name'] },
+        {
+          model: User,
+          as: 'Assignee',
+          attributes: ['userId', 'username', 'realName'],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.json({
+      taskIds: tasks.map((t) => t.taskId),
+      tasks,
+      total: tasks.length,
+    });
+  } catch (error) {
+    logger.error('获取我的盘点任务失败', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/tasks/:taskId', requirePermission('inventory:*'), async (req, res) => {
   try {
     const task = await InventoryTask.findByPk(req.params.taskId, {

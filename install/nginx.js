@@ -244,11 +244,23 @@ async function autoConfigureNginx() {
 
   config.nginxRoot = wwwDir;
 
+  await syncNginxConfig();
+}
+
+/**
+ * 同步 Nginx 配置文件（仅同步配置，不复制前端文件）
+ * 将 deploy/nginx-idc.conf 复制到系统 Nginx 目录，并测试、重载
+ * @returns {Promise<boolean>} 是否同步成功
+ */
+async function syncNginxConfig() {
+  const root = isRootUser();
+  const sudoPrefix = root ? '' : 'sudo ';
+
   const configSource = path.join(__dirname, '..', 'deploy', 'nginx-idc.conf');
 
   if (!fs.existsSync(configSource)) {
-    log.error('Nginx 配置文件不存在，请先运行安装脚本');
-    return;
+    log.error('Nginx 配置文件不存在，请先执行: node install.js --regen-nginx 生成');
+    return false;
   }
 
   try {
@@ -256,7 +268,8 @@ async function autoConfigureNginx() {
     let useSitesAvailable = false;
     let isBtNginx = false;
 
-    if (isBtPanel && fs.existsSync('/www/server/nginx/conf/vhost')) {
+    if (fs.existsSync('/www/server/nginx/sbin/nginx') ||
+        fs.existsSync('/www/server/nginx/conf/nginx.conf')) {
       configDir = '/www/server/nginx/conf/vhost';
       isBtNginx = true;
       log.info('使用宝塔面板 Nginx 虚拟主机目录');
@@ -268,7 +281,7 @@ async function autoConfigureNginx() {
       useSitesAvailable = false;
     } else {
       log.warning('未找到标准 Nginx 配置目录，请手动配置');
-      return;
+      return false;
     }
 
     const configDest = path.join(configDir, 'idc.conf');
@@ -277,7 +290,7 @@ async function autoConfigureNginx() {
     const copyResult = runCommand(`${sudoPrefix}cp "${configSource}" "${configDest}"`);
     if (!copyResult.success) {
       log.error('配置文件复制失败');
-      return;
+      return false;
     }
 
     if (useSitesAvailable) {
@@ -306,7 +319,7 @@ async function autoConfigureNginx() {
     if (!testResult.success) {
       log.error('Nginx 配置测试失败');
       log.info('请检查配置文件: ' + configDest);
-      return;
+      return false;
     }
 
     log.info('重启 Nginx 服务...');
@@ -323,9 +336,12 @@ async function autoConfigureNginx() {
       }
     }
 
+    return true;
+
   } catch (error) {
-    log.error(`自动配置失败: ${error.message}`);
+    log.error(`Nginx 配置同步失败: ${error.message}`);
     log.info('请手动配置 Nginx');
+    return false;
   }
 }
 
@@ -430,5 +446,6 @@ module.exports = {
   autoInstallNginxLinux,
   autoInstallNginx,
   autoConfigureNginx,
+  syncNginxConfig,
   configureServices,
 };

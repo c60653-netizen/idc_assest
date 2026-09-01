@@ -4,7 +4,7 @@ const { ask, closeReadline } = require('./ui');
 const { config, saveConfig, loadSavedConfig, applySavedConfig, parseArgs, showHelp } = require('./config');
 const { checkEnvironment } = require('./env-check');
 const { configureDatabase } = require('./database');
-const { configureServices, autoConfigureNginx } = require('./nginx');
+const { configureServices, autoConfigureNginx, syncNginxConfig } = require('./nginx');
 const { generateBackendEnv, generatePM2Config, generateNginxConfig, confirmConfiguration } = require('./generator');
 const { installDependencies, initDatabase, buildFrontend, startServices } = require('./installer');
 const { healthCheck } = require('./health');
@@ -58,6 +58,36 @@ function printSummary() {
   log.success('安装部署完成！');
 }
 
+/**
+ * 一键重新生成并同步 Nginx 配置
+ * 读取 backend/.env 的 PORT → 重新生成 deploy/nginx-idc.conf → 同步到系统 Nginx → 健康检查
+ * @returns {Promise<void>}
+ */
+async function regenNginxOnly() {
+  log.banner('重新生成 Nginx 配置', 'Regen Nginx Config', SCRIPT_VERSION);
+  try {
+    const saved = loadSavedConfig();
+    if (saved) {
+      applySavedConfig(saved);
+    }
+    generateNginxConfig();
+    if (process.platform !== 'win32' && config.frontendDeploy === 'nginx') {
+      await syncNginxConfig();
+    }
+    await healthCheck();
+    log.divider();
+    log.success('Nginx 配置已重新生成并同步');
+    log.info(`后端端口（backend/.env）: ${config.backendPort}`);
+    log.info('如后端服务仍监听旧端口，请执行: pm2 restart idc-backend');
+  } catch (error) {
+    log.error(`重新生成 Nginx 配置失败: ${error.message}`);
+    process.exit(1);
+  } finally {
+    closeReadline();
+    closeLogFile();
+  }
+}
+
 async function main() {
   installStartTime = Date.now();
   const cmdArgs = parseArgs();
@@ -68,6 +98,12 @@ async function main() {
   }
 
   initLogFile(LOG_DIR);
+
+  // 仅重新生成 Nginx 配置（后端端口以 backend/.env 为准，一键同步，避免 502）
+  if (cmdArgs.regenNginx) {
+    await regenNginxOnly();
+    return;
+  }
 
   log.banner(
     'IDC 设备管理系统',

@@ -816,16 +816,24 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 router.post('/forgot-password/send-code', async (req, res) => {
   try {
     // 兼容旧字段 email，新字段 account 优先
-    const rawAccount = (req.body.account || req.body.email || '').trim();
+    const accountInput = (req.body.account || '').trim();
+    const emailInput = (req.body.email || '').trim();
+    const rawAccount = accountInput || emailInput;
     if (!rawAccount) {
       return res.status(400).json({ success: false, message: '请输入账户名或邮箱' });
+    }
+
+    // 通过旧字段 email 明确作为邮箱提交时，必须为合法邮箱格式，否则返回 400
+    // （account 字段仍兼容"邮箱或用户名"两种形式，此处不做格式强校验）
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!accountInput && emailInput && !emailRegex.test(emailInput)) {
+      return res.status(400).json({ success: false, message: '邮箱格式无效' });
     }
 
     // 统一返回的防枚举提示
     const antiEnumerationMsg = '如果该账户已注册并验证邮箱，验证码已发送至账户绑定邮箱';
 
     // 识别输入类型：邮箱 or 用户名
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isEmail = emailRegex.test(rawAccount.toLowerCase());
     const lookupValue = isEmail ? rawAccount.toLowerCase() : rawAccount;
     const lookupField = isEmail ? 'email' : 'username';

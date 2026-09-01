@@ -5,6 +5,35 @@ const { generateSecretKey } = require('./utils');
 const { config } = require('./config');
 const { ask } = require('./ui');
 
+/**
+ * 从 backend/.env 读取后端端口（.env 是端口唯一事实来源）
+ * 文件不存在或未配置 PORT 时返回 null
+ * @returns {string|null} 端口字符串
+ */
+function readBackendPortFromEnv() {
+  const envPath = path.join(__dirname, '..', 'backend', '.env');
+  if (!fs.existsSync(envPath)) return null;
+  try {
+    const content = fs.readFileSync(envPath, 'utf8');
+    const match = content.match(/^PORT\s*=\s*(\d+)/m);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 同步后端端口：以 backend/.env 的 PORT 为准，覆盖 config.backendPort
+ * 确保 PM2 / Nginx 生成的配置与 .env 保持一致，避免端口被硬编码写死
+ */
+function syncBackendPortFromEnv() {
+  const envPort = readBackendPortFromEnv();
+  if (envPort && String(config.backendPort) !== envPort) {
+    log.info(`后端端口以 backend/.env 为准: ${config.backendPort} -> ${envPort}`);
+    config.backendPort = envPort;
+  }
+}
+
 function generateBackendEnv() {
   const envPath = path.join(__dirname, '..', 'backend', '.env');
 
@@ -83,6 +112,9 @@ function generatePM2Config() {
       fs.mkdirSync(deployDir, { recursive: true });
     }
 
+    // 后端端口以 backend/.env 为准，避免 PM2 注入旧端口覆盖 dotenv
+    syncBackendPortFromEnv();
+
   const pm2Config = {
     apps: [{
       name: 'idc-backend',
@@ -138,6 +170,9 @@ function generateNginxConfig() {
     if (!fs.existsSync(deployDir)) {
       fs.mkdirSync(deployDir, { recursive: true });
     }
+
+    // 后端端口以 backend/.env 为准，nginx 反向代理目标端口跟随 .env
+    syncBackendPortFromEnv();
 
   const isWindows = process.platform === 'win32';
 

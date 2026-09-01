@@ -75,6 +75,7 @@ function parseArgs() {
     skipBuild: args.includes('--skip-build'),
     dbType: args.find(a => a.startsWith('--db='))?.split('=')[1],
     backendPort: args.find(a => a.startsWith('--port='))?.split('=')[1],
+    regenNginx: args.includes('--regen-nginx'),
     help: args.includes('--help') || args.includes('-h')
   };
 }
@@ -91,6 +92,7 @@ ${colors.bright}IDC设备管理系统 - 安装部署脚本 v${SCRIPT_VERSION}${c
   --skip-build           跳过前端构建
   --db=<type>            数据库类型 (sqlite/mysql)
   --port=<port>          后端端口
+  --regen-nginx          仅重新生成 Nginx 配置（端口跟随 backend/.env）
   -h, --help             显示帮助信息
 
 示例:
@@ -98,6 +100,7 @@ ${colors.bright}IDC设备管理系统 - 安装部署脚本 v${SCRIPT_VERSION}${c
   node install.js -y                     # 使用默认配置快速安装
   node install.js -y --db=mysql          # 使用 MySQL 数据库
   node install.js -y --port=3000         # 指定后端端口
+  node install.js --regen-nginx          # 修改 .env 端口后重新同步 Nginx
 `);
   process.exit(0);
 }
