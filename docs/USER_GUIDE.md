@@ -929,7 +929,6 @@ A: 已关闭的工单无法重新打开，如有新问题请新建工单。
 - **功能建议**：提交 Issue 并标注 `feature-request`
 
 **代码仓库：**
-- Gitee: https://gitee.com/zhang96110/idc_assest
 - GitHub: https://github.com/gituib/idc_assest
 
 ---

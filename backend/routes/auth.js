@@ -104,6 +104,13 @@ router.post('/register', async (req, res) => {
             email: user.email,
             emailVerified: user.emailVerified,
             realName: user.realName,
+            // 与登录接口返回结构对齐：携带角色权限，避免首次注册后导航菜单缺少权限数据
+            roles: [{
+              roleId: adminRole.roleId,
+              roleName: adminRole.roleName,
+              roleCode: adminRole.roleCode,
+              permissions: adminRole.permissions || [],
+            }],
           },
           token,
           isFirstUser: true,

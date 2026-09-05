@@ -88,5 +88,4 @@
 **如需获取商业授权，请联系授权方：**
 
 - GitHub：<https://github.com/gituib>
-- Gitee：<https://gitee.com/zhang96110>
 - 联系邮箱：<849185023@qq.com>

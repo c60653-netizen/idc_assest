@@ -7,7 +7,6 @@
 现代化数据中心（IDC）设备管理系统，提供机房、机柜、设备的全生命周期管理，具备 3D 可视化展示功能。
 
 **GitHub**: <https://github.com/gituib/idc_assest>
-**Gitee**: <https://gitee.com/zhang96110/idc_assest>
 
 ---
 
@@ -82,7 +81,7 @@ curl -fsSL https://raw.githubusercontent.com/gituib/idc_assest/main/install.sh |
 
 ```powershell
 # 克隆项目
-git clone https://gitee.com/zhang96110/idc_assest.git
+git clone https://github.com/gituib/idc_assest.git
 cd idc_assest
 
 # 运行安装脚本（需要先安装 Node.js）
@@ -563,15 +562,14 @@ git push origin feature/your-feature
 - 适用场景包括：闭源分发/销售、封装进闭源商业产品、对外提供商业化部署服务、企业内部闭源商业化运营等。
 - 商业授权为非独占许可，付费后可使用、修改、分发并闭源集成本软件，详见 [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md)。
 
-> 版权 © 2026 gituib（<https://github.com/gituib> · <https://gitee.com/zhang96110>）
+> 版权 © 2026 gituib（<https://github.com/gituib>）
 >
-> 如需商业授权，请联系：849185023@qq.com 或 <https://github.com/gituib> / <https://gitee.com/zhang96110>
+> 如需商业授权，请联系：849185023@qq.com 或 <https://github.com/gituib>
 
 ***
 
 **⭐ 如果这个项目对您有帮助，请给我们一个 Star！**
 
-- Gitee Issues: <https://gitee.com/zhang96110/idc_assest/issues>
 - GitHub Issues: <https://github.com/gituib/idc_assest/issues>
 - QQ 群：1081123775
 

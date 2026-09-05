@@ -54,6 +54,30 @@ const api = axios.create({
   },
 });
 
+const PREMIUM_BASE_URL = import.meta.env.VITE_PREMIUM_API_BASE_URL || '/premium-api';
+
+const premium = axios.create({
+  baseURL: PREMIUM_BASE_URL,
+  timeout: API_CONFIG.timeout,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+premium.interceptors.request.use(config => {
+  const token = secureStorage.get(TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+premium.interceptors.response.use(
+  response => response,
+  error => Promise.reject(error)
+);
+
+export const premiumAPI = {};
+
 api.interceptors.request.use(
   config => {
     const token = secureStorage.get(TOKEN_KEY);

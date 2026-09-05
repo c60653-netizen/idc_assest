@@ -292,6 +292,11 @@ async function initializeApp() {
     await initFaultCategories();
     await initAutoBackupScheduler();
 
+    const premiumLoaded = await loadPremiumModule(app);
+    if (premiumLoaded) {
+      logger.info('闭源模块已就绪');
+    }
+
     logger.info('所有初始化完成，服务器准备就绪');
   } catch (error) {
     logger.error('初始化失败', { error: error.message, stack: error.stack });
@@ -304,6 +309,7 @@ const { specs, customCSS } = require('./swagger');
 const { authMiddleware } = require('./middleware/auth');
 const { maintenanceMiddleware } = require('./middleware/maintenance');
 const loadRoutes = require('./utils/routeLoader');
+const { loadPremiumModule } = require('./premium/premiumLoader');
 
 initializeApp()
   .then(() => {
@@ -344,6 +350,8 @@ app.use('/api', (req, res, next) => {
 app.use('/api', maintenanceMiddleware);
 
 loadRoutes(app);
+
+app.use('/premium-api', authMiddleware);
 
 const { getMaintenanceStatus, disableMaintenanceMode } = require('./utils/maintenanceMode');
 
